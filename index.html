@@ -186,6 +186,11 @@ tr:hover td{background:var(--bg3);}
 .theme-toggle{width:100%;display:flex;align-items:center;gap:8px;padding:.6rem .875rem;border-radius:var(--r2);border:1px solid var(--line2);background:var(--bg3);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--sans);transition:all .2s;}
 .theme-toggle:hover{border-color:var(--accent);color:var(--text);background:var(--bg4);}
 
+/* Rules modal */
+#rules-modal.show{display:flex !important;}
+.rules-input-locked{pointer-events:none;opacity:.7;background:var(--bg3) !important;}
+.rules-input-editable{background:var(--bg2);border:1px solid var(--accent) !important;}
+
 </style>
 </head>
 <body>
@@ -329,91 +334,82 @@ tr:hover td{background:var(--bg3);}
       </div>
     </div>
 
+    <!-- WARNING MODAL -->
+    <div id="rules-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r2);padding:2rem;max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.5);">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,179,71,.15);border:1px solid rgba(255,179,71,.3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">⚠️</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Edit commission rules?</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">This action affects all commission calculations</div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:1.25rem;">Changing these rules will affect how commissions are calculated across <strong>all projects</strong>. Make sure you intend to update the rules before proceeding. This cannot be undone automatically.</p>
+        <div style="background:var(--bg3);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:1.25rem;font-family:var(--mono);font-size:11px;color:var(--text3);">
+          Type <span style="color:var(--amber);font-weight:600;">CONFIRM</span> below to unlock editing
+        </div>
+        <input id="modal-confirm-input" placeholder="Type CONFIRM here..." oninput="checkModalConfirm()" style="width:100%;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.6rem .875rem;font-size:13px;color:var(--text);font-family:var(--mono);margin-bottom:1rem;" />
+        <div style="display:flex;gap:.625rem;justify-content:flex-end;">
+          <button class="btn" onclick="closeRulesModal()">Cancel</button>
+          <button class="btn" id="modal-proceed-btn" onclick="unlockRules()" disabled style="opacity:.4;cursor:not-allowed;color:var(--amber);border-color:rgba(255,179,71,.3);">Unlock editing</button>
+        </div>
+      </div>
+    </div>
+
     <!-- RULES -->
     <div id="page-rules" class="page">
-      <div class="topbar"><div><div class="page-title">Commission Rules</div><div class="page-sub">reference for how commissions are calculated</div></div></div>
-      <div class="content">
+      <div class="topbar">
+        <div><div class="page-title">Commission Rules</div><div class="page-sub" id="rules-status-sub">view only — click Edit to make changes</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <div id="rules-lock-badge" style="font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:.4rem;">🔒 Locked</div>
+          <button id="rules-edit-btn" class="btn btn-sm" onclick="openRulesModal()">Edit rules</button>
+          <button id="rules-save-btn" class="btn btn-sm btn-accent" onclick="saveRules()" style="display:none;">Save changes</button>
+          <button id="rules-cancel-btn" class="btn btn-sm" onclick="cancelRulesEdit()" style="display:none;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Locked overlay -->
+      <div id="rules-locked-overlay" style="position:absolute;inset:0;z-index:5;cursor:not-allowed;"></div>
+
+      <div class="content" style="position:relative;">
+        <div id="rules-edit-banner" style="display:none;background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.25);border-radius:var(--r2);padding:.75rem 1rem;margin-bottom:1.25rem;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:.5rem;">
+          ✏️ Editing mode active — all fields are now editable. Click <strong>Save changes</strong> when done.
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+          <!-- THRESHOLDS -->
           <div class="card">
             <div class="card-header"><span class="card-title">Full commission thresholds</span></div>
             <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8;">
-              <p style="margin-bottom:.75rem;color:var(--text3);font-size:11px;font-family:var(--mono);">If below threshold → 65% of base rate applies</p>
+              <p style="margin-bottom:.75rem;color:var(--text3);font-size:11px;font-family:var(--mono);">If below threshold → <span id="r-pct-display">65</span>% of base rate applies. <span id="r-pct-edit" style="display:none;">Partial rate: <input id="r-partial-pct" type="number" value="65" min="1" max="100" style="width:52px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:2px 6px;font-size:11px;color:var(--text);font-family:var(--mono);" onchange="rulesData.partialPct=parseFloat(this.value);document.getElementById('r-pct-display').textContent=this.value;">%</span></p>
               <div class="tabs" style="margin-bottom:1rem;">
                 <div class="tab active" onclick="rulesTab(this,'eu-apac')">EU & APAC</div>
                 <div class="tab" onclick="rulesTab(this,'na')">NA</div>
               </div>
-              <div id="rules-eu-apac">
-                <table style="width:100%;font-size:11px;min-width:0;">
-                  <thead><tr><th style="font-size:10px;">Type</th><th style="font-size:10px;"># Projects</th><th style="font-size:10px;">Min Amount</th></tr></thead>
-                  <tbody>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Virtual Round Table</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$11,200</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$9,600</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$8,800</td></tr>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Virtual Masterclass</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$16,000</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$14,800</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$13,200</td></tr>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Physical Round Table</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$16,400</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$14,400</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$13,200</td></tr>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Physical Masterclass</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$24,800</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$23,200</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$22,400</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div id="rules-na" style="display:none;">
-                <table style="width:100%;font-size:11px;min-width:0;">
-                  <thead><tr><th style="font-size:10px;">Type</th><th style="font-size:10px;"># Projects</th><th style="font-size:10px;">Min Amount</th></tr></thead>
-                  <tbody>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Virtual Round Table</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$14,000</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$12,400</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$10,800</td></tr>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Virtual Masterclass</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$18,000</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$16,400</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$15,200</td></tr>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Physical Round Table</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$19,120</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$17,520</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$15,200</td></tr>
-                    <tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">Physical Masterclass</td></tr>
-                    <tr><td>1</td><td>1</td><td class="mono green">$28,400</td></tr>
-                    <tr><td></td><td>2–3</td><td class="mono green">$26,000</td></tr>
-                    <tr><td></td><td>4+</td><td class="mono green">$25,520</td></tr>
-                  </tbody>
-                </table>
-              </div>
+              <div id="rules-eu-apac"><div id="thresh-eu-apac-body"></div></div>
+              <div id="rules-na" style="display:none;"><div id="thresh-na-body"></div></div>
             </div>
           </div>
+
           <div>
+            <!-- MODIFIERS -->
             <div class="card" style="margin-bottom:1.25rem;">
               <div class="card-header"><span class="card-title">Modifiers</span></div>
-              <div class="card-body" style="font-size:12px;color:var(--text2);line-height:2;">
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem;align-items:start;">
-                  <span class="badge badge-amber">Ortus Prod</span><span>Base rate × 1.5</span>
-                  <span class="badge badge-red">65% rule</span><span>Below threshold → base × 0.65</span>
-                  <span class="badge badge-blue">CD deflated</span><span>Gets 84% of original rate</span>
-                  <span class="badge badge-blue">CD inflated</span><span>Recovers 16% + 1.5× base</span>
-                  <span class="badge badge-blue">AM deflated</span><span>Gets 71% of original rate</span>
-                  <span class="badge badge-blue">AM inflated</span><span>Recovers 29% + 1.5× base</span>
-                  <span class="badge badge-gray">TL cut</span><span>AM base halved when TL earns</span>
-                  <span class="badge badge-gray">TL rate</span><span>Always 0.75% flat</span>
-                </div>
+              <div class="card-body" style="font-size:12px;color:var(--text2);">
+                <table style="width:100%;font-size:12px;min-width:0;" id="modifiers-table">
+                  <thead><tr><th style="font-size:10px;">Modifier</th><th style="font-size:10px;">Description</th><th id="mod-val-header" style="font-size:10px;">Value</th></tr></thead>
+                  <tbody id="modifiers-body"></tbody>
+                </table>
               </div>
             </div>
+
+            <!-- TYPE MAPPINGS -->
             <div class="card">
-              <div class="card-header"><span class="card-title">Type mappings</span></div>
-              <div class="card-body" style="font-size:11px;color:var(--text3);line-height:1.9;font-family:var(--mono);">
-                <div style="margin-bottom:.75rem;"><span class="badge badge-green" style="margin-bottom:.25rem;display:inline-block;">Virtual RT</span><br>Virtual Roundtable, Virtual Roundtable w/ add-ons, Virtual Guesting</div>
-                <div style="margin-bottom:.75rem;"><span class="badge badge-blue" style="margin-bottom:.25rem;display:inline-block;">Virtual MC</span><br>Virtual Masterclass</div>
-                <div style="margin-bottom:.75rem;"><span class="badge badge-amber" style="margin-bottom:.25rem;display:inline-block;">Physical RT</span><br>Physical Guesting, Lunch, Dinner, Breakfast, Appointment Setting, Dinner Roundtable, Guesting (with logistics)</div>
-                <div><span class="badge badge-red" style="margin-bottom:.25rem;display:inline-block;">Physical MC</span><br>In-Person Masterclass, Ortus Productions, Physical Guesting (no logistics), Ortus Productions and Physical Guesting</div>
+              <div class="card-header">
+                <span class="card-title">Type mappings</span>
+                <button id="add-mapping-btn" class="btn btn-sm" onclick="addTypeMapping()" style="display:none;">+ Add</button>
               </div>
+              <div class="card-body" id="type-mappings-body" style="font-size:11px;color:var(--text3);line-height:1.9;font-family:var(--mono);"></div>
             </div>
           </div>
         </div>
@@ -911,6 +907,7 @@ function nav(id) {
     if (n.textContent.trim().toLowerCase().replace(/\s+/g,'') === id.toLowerCase().replace(/\s+/g,'')) n.classList.add('active');
   });
   if (id === 'database') renderRolesTable();
+  if (id === 'rules') { renderRulesPage(); lockRules(); }
 }
 
 function rulesTab(el, id) {
@@ -918,6 +915,8 @@ function rulesTab(el, id) {
   el.classList.add('active');
   document.getElementById('rules-eu-apac').style.display = id === 'eu-apac' ? '' : 'none';
   document.getElementById('rules-na').style.display = id === 'na' ? '' : 'none';
+  if (id === 'eu-apac') renderThresholdTable('EU','thresh-eu-apac-body');
+  else renderThresholdTable('NA','thresh-na-body');
 }
 
 // ── Toast ──
@@ -1115,6 +1114,208 @@ function dbTab(el, id) {
   if (id === 'regions') renderRegionsTable();
 }
 
+
+// ── Commission Rules State ──
+const STORE_RULES = 'oc-rules-v1';
+let rulesLocked = true;
+
+let rulesData = {
+  partialPct: 65,
+  thresholds: {
+    'EU': {
+      'VRT': [11200, 9600, 8800],
+      'VMC': [16000, 14800, 13200],
+      'PRT': [16400, 14400, 13200],
+      'PMC': [24800, 23200, 22400],
+    },
+    'NA': {
+      'VRT': [14000, 12400, 10800],
+      'VMC': [18000, 16400, 15200],
+      'PRT': [19120, 17520, 15200],
+      'PMC': [28400, 26000, 25520],
+    }
+  },
+  modifiers: [
+    { key:'ortusMult',  label:'Ortus Prod multiplier',    value:1.5,  desc:'Applied when Ortus Prod = Yes' },
+    { key:'cdDeflated', label:'CD deflated %',            value:84,   desc:'% of base rate when deflated' },
+    { key:'cdInflated', label:'CD inflate recovery %',    value:16,   desc:'% recovered + 1.5× base' },
+    { key:'amDeflated', label:'AM deflated %',            value:71,   desc:'% of base rate when deflated' },
+    { key:'amInflated', label:'AM inflate recovery %',    value:29,   desc:'% recovered + 1.5× base' },
+    { key:'tlRate',     label:'TL flat rate %',           value:0.75, desc:'Fixed rate for TL regardless of deal' },
+    { key:'amTLHalve',  label:'AM base halved when TL?',  value:1,    desc:'1 = yes, 0 = no' },
+  ],
+  typeMappings: [
+    { category:'Virtual RT',      badge:'badge-green', types:['Virtual Roundtable','Virtual Roundtable w/ add-ons','Virtual Guesting'] },
+    { category:'Virtual MC',      badge:'badge-blue',  types:['Virtual Masterclass'] },
+    { category:'Physical RT',     badge:'badge-amber', types:['Physical Guesting','Lunch','Lunch w/ add-ons','Dinner','Dinner w/ add-on','Breakfast','Appointment Setting','Dinner Roundtable','Guesting (with logistics involved, client-led project)'] },
+    { category:'Physical MC',     badge:'badge-red',   types:['In-Person Masterclass','In-Person Masterclass w/ add-ons','In-person Masterclass','Guesting (no logistics involved, client-led project)','Ortus Productions (bespoke client-led events, unlike our usual offerings)','Ortus Productions','Physical Guesting (no logistics involved, client-led project)','Ortus Productions and Physical Guesting'] },
+  ]
+};
+
+function saveRulesData() {
+  try { localStorage.setItem(STORE_RULES, JSON.stringify(rulesData)); } catch(e) {}
+}
+function restoreRulesData() {
+  try {
+    const r = localStorage.getItem(STORE_RULES);
+    if (r) rulesData = JSON.parse(r);
+  } catch(e) {}
+}
+
+// ── Modal ──
+function openRulesModal() {
+  document.getElementById('modal-confirm-input').value = '';
+  document.getElementById('modal-proceed-btn').disabled = true;
+  document.getElementById('modal-proceed-btn').style.opacity = '.4';
+  document.getElementById('modal-proceed-btn').style.cursor = 'not-allowed';
+  document.getElementById('rules-modal').classList.add('show');
+  setTimeout(() => document.getElementById('modal-confirm-input').focus(), 100);
+}
+function closeRulesModal() {
+  document.getElementById('rules-modal').classList.remove('show');
+}
+function checkModalConfirm() {
+  const val = document.getElementById('modal-confirm-input').value.trim();
+  const btn = document.getElementById('modal-proceed-btn');
+  const ok = val === 'CONFIRM';
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.4';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+function unlockRules() {
+  closeRulesModal();
+  rulesLocked = false;
+  document.getElementById('rules-locked-overlay').style.display = 'none';
+  document.getElementById('rules-lock-badge').innerHTML = '✏️ <span style="color:var(--amber)">Editing unlocked</span>';
+  document.getElementById('rules-edit-btn').style.display = 'none';
+  document.getElementById('rules-save-btn').style.display = '';
+  document.getElementById('rules-cancel-btn').style.display = '';
+  document.getElementById('rules-edit-banner').style.display = 'flex';
+  document.getElementById('rules-status-sub').textContent = 'editing mode — all fields are now editable';
+  document.getElementById('r-pct-edit').style.display = '';
+  document.getElementById('add-mapping-btn').style.display = '';
+  renderRulesPage();
+}
+function cancelRulesEdit() {
+  restoreRulesData();
+  lockRules();
+  renderRulesPage();
+  toast('Changes discarded', 'ok');
+}
+function lockRules() {
+  rulesLocked = true;
+  document.getElementById('rules-locked-overlay').style.display = '';
+  document.getElementById('rules-lock-badge').innerHTML = '🔒 Locked';
+  document.getElementById('rules-edit-btn').style.display = '';
+  document.getElementById('rules-save-btn').style.display = 'none';
+  document.getElementById('rules-cancel-btn').style.display = 'none';
+  document.getElementById('rules-edit-banner').style.display = 'none';
+  document.getElementById('rules-status-sub').textContent = 'view only — click Edit to make changes';
+  document.getElementById('r-pct-edit').style.display = 'none';
+  document.getElementById('add-mapping-btn').style.display = 'none';
+}
+function saveRules() {
+  saveRulesData();
+  lockRules();
+  renderRulesPage();
+  toast('✓ Commission rules saved', 'ok');
+}
+
+// ── Render Rules ──
+const THRESH_TYPES = ['VRT','VMC','PRT','PMC'];
+const THRESH_LABELS = { VRT:'Virtual Round Table', VMC:'Virtual Masterclass', PRT:'Physical Round Table', PMC:'Physical Masterclass' };
+const THRESH_BANDS = ['1 project','2–3 projects','4+ projects'];
+
+function renderThresholdTable(region, elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const locked = rulesLocked;
+  let html = '<table style="width:100%;font-size:11px;min-width:0;"><thead><tr><th style="font-size:10px;">Type</th><th style="font-size:10px;"># Projects</th><th style="font-size:10px;">Min Amount ($)</th></tr></thead><tbody>';
+  THRESH_TYPES.forEach(type => {
+    html += `<tr><td colspan="3" style="color:var(--text3);font-family:var(--mono);font-size:10px;padding-top:.75rem;">${THRESH_LABELS[type]}</td></tr>`;
+    const vals = rulesData.thresholds[region][type];
+    THRESH_BANDS.forEach((band, i) => {
+      const cls = locked ? 'rules-input-locked' : 'rules-input-editable';
+      html += `<tr>
+        <td></td>
+        <td style="color:var(--text2);">${band}</td>
+        <td><input type="number" value="${vals[i]}" ${locked?'readonly':''} class="${cls}"
+          style="width:90px;border-radius:var(--r);padding:3px 7px;font-size:11px;color:var(--text);font-family:var(--mono);border:1px solid ${locked?'var(--line)':'var(--accent)'};"
+          onchange="rulesData.thresholds['${region}']['${type}'][${i}]=parseFloat(this.value)||0" /></td>
+      </tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderModifiers() {
+  const el = document.getElementById('modifiers-body');
+  if (!el) return;
+  const locked = rulesLocked;
+  el.innerHTML = rulesData.modifiers.map(m => {
+    const cls = locked ? 'rules-input-locked' : 'rules-input-editable';
+    return `<tr>
+      <td style="font-weight:500;font-size:12px;">${m.label}</td>
+      <td style="font-size:11px;color:var(--text3);">${m.desc}</td>
+      <td><input type="number" value="${m.value}" step="0.01" ${locked?'readonly':''} class="${cls}"
+        style="width:70px;border-radius:var(--r);padding:3px 7px;font-size:11px;color:var(--text);font-family:var(--mono);border:1px solid ${locked?'var(--line)':'var(--accent)'};"
+        onchange="updateModifier('${m.key}',parseFloat(this.value)||0)" /></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateModifier(key, value) {
+  const m = rulesData.modifiers.find(m => m.key === key);
+  if (m) m.value = value;
+}
+
+function renderTypeMappings() {
+  const el = document.getElementById('type-mappings-body');
+  if (!el) return;
+  const locked = rulesLocked;
+  el.innerHTML = rulesData.typeMappings.map((grp, gi) => {
+    const typesHtml = grp.types.map((t, ti) => locked
+      ? `<span style="display:inline-block;margin:.1rem .2rem;">${t}</span>`
+      : `<span style="display:inline-flex;align-items:center;gap:4px;margin:.15rem .2rem;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:2px 6px;">
+          <span contenteditable="true" oninput="rulesData.typeMappings[${gi}].types[${ti}]=this.textContent.trim()" style="outline:none;min-width:60px;">${t}</span>
+          <span onclick="removeTypeFromMapping(${gi},${ti})" style="cursor:pointer;color:var(--red);font-size:10px;line-height:1;">✕</span>
+        </span>`
+    ).join('');
+    const addBtn = locked ? '' : `<button class="btn btn-sm" onclick="addTypeToMapping(${gi})" style="font-size:10px;padding:2px 8px;margin:.15rem .2rem;">+ type</button>`;
+    return `<div style="margin-bottom:.875rem;">
+      <span class="badge ${grp.badge}" style="margin-bottom:.35rem;display:inline-block;">${grp.category}</span><br>
+      ${typesHtml}${addBtn}
+    </div>`;
+  }).join('');
+}
+
+function addTypeToMapping(gi) {
+  const t = prompt('Enter the project type string exactly as it appears in your data:');
+  if (!t || !t.trim()) return;
+  rulesData.typeMappings[gi].types.push(t.trim());
+  renderTypeMappings();
+}
+function removeTypeFromMapping(gi, ti) {
+  rulesData.typeMappings[gi].types.splice(ti, 1);
+  renderTypeMappings();
+}
+function addTypeMapping() {
+  const cat = prompt('New category name (e.g. "Special Event"):');
+  if (!cat) return;
+  rulesData.typeMappings.push({ category: cat, badge: 'badge-gray', types: [] });
+  renderTypeMappings();
+}
+
+function renderRulesPage() {
+  renderThresholdTable('EU', 'thresh-eu-apac-body');
+  renderThresholdTable('NA', 'thresh-na-body');
+  renderModifiers();
+  renderTypeMappings();
+  document.getElementById('r-partial-pct').value = rulesData.partialPct;
+  document.getElementById('r-pct-display').textContent = rulesData.partialPct;
+}
+
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1139,6 +1340,7 @@ function toggleTheme() {
 (function() {
   restoreFromStorage();
   restoreDatabase();
+  restoreRulesData();
   if (projects.length > 0 || scheme.length > 0) {
     updateDataStatus();
     renderAll();
