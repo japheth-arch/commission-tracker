@@ -1558,15 +1558,8 @@ function renderPeoplePage() {
   const statusFilter = document.getElementById('people-status-filter')?.value || '';
 
   // Build pill list
-  const allPeople = getAllPeople();
-  // Also include people who are source/mgmt/tl in projects
-  const fromProjects = new Set();
-  projects.forEach(p => {
-    if (p['Source']) fromProjects.add(p['Source']);
-    if (p['Management']) fromProjects.add(p['Management']);
-    if (p['TL']) fromProjects.add(p['TL']);
-  });
-  const merged = [...new Set([...allPeople, ...fromProjects])].filter(p => p && p.trim()).sort();
+  // Only show people who are in the Roles database
+  const merged = [...new Set(rolesDB.map(r => r.person).filter(p => p && p.trim()))].sort();
 
   const pillsEl = document.getElementById('people-pills');
   if (pillsEl) {
