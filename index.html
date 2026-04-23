@@ -546,17 +546,15 @@ function processCSV(text, type, name) {
 
 function loadProjects(text, name) {
   const rows = parseCSV(text);
-  // Find header row (has "Project Tag")
   let hIdx = rows.findIndex(r => r.some(c => c.includes('Project Tag')));
   if (hIdx < 0) hIdx = 1;
   const headers = rows[hIdx];
-  projects = [];
+  const incoming = [];
   for (let i = hIdx + 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r[0] || !r[0].trim()) continue;
     const obj = {};
     headers.forEach((h, j) => { obj[h.trim()] = (r[j] || '').trim(); });
-    // Parse key fields
     obj._amount = parseMoney(obj['Amount']);
     obj._totalComm = parseMoney(obj['Total Amount']);
     obj._date = parseDate(obj['Date']);
@@ -566,28 +564,39 @@ function loadProjects(text, name) {
     obj._ortusProd = (obj['Ortus Prod'] || '').trim().toLowerCase() === 'yes';
     obj._deflated = (obj['Deflated'] || '').trim().toLowerCase() === 'yes';
     obj._inflated = (obj['Inflated'] || '').trim().toLowerCase() === 'yes';
-    // Per-person commissions
     obj._personComms = {};
     PEOPLE_COLS.forEach(p => {
       const v = parseMoney(obj[p]);
       if (v !== 0) obj._personComms[p] = v;
     });
-    projects.push(obj);
+    incoming.push(obj);
   }
-  document.getElementById('upload-ok-projects').textContent = `✓ ${projects.length} projects loaded`;
+  // Merge: keep existing rows, add or overwrite by Project Tag
+  const existingByTag = {};
+  projects.forEach(p => { if (p['Project Tag']) existingByTag[p['Project Tag']] = p; });
+  let added = 0, updated = 0;
+  incoming.forEach(p => {
+    const tag = p['Project Tag'];
+    if (!tag) return;
+    if (existingByTag[tag]) { updated++; } else { added++; }
+    existingByTag[tag] = p;
+  });
+  projects = Object.values(existingByTag);
+  const msg = `✓ ${projects.length} total projects (${added} new, ${updated} updated from ${name})`;
+  document.getElementById('upload-ok-projects').textContent = msg;
 }
 
 function loadScheme(text, name) {
   const rows = parseCSV(text);
-  scheme = [];
   let hIdx = rows.findIndex(r => r[0] && r[0].includes('Receiver'));
   if (hIdx < 0) hIdx = 2;
+  const incoming = [];
   for (let i = hIdx + 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r[0] || !r[0].trim()) continue;
     const d = parseDate(r[7]);
     if (!d) continue;
-    scheme.push({
+    incoming.push({
       receiver: r[0].trim(),
       source: (r[2] || '').trim(),
       sourceRate: parsePct(r[3]),
@@ -597,7 +606,13 @@ function loadScheme(text, name) {
       applicableDate: d
     });
   }
-  document.getElementById('upload-ok-scheme').textContent = `✓ ${scheme.length} scheme rows loaded`;
+  // Merge by unique key: receiver+source+management+date
+  const key = s => `${s.receiver}|${s.source}|${s.management}|${s.applicableDate?.toISOString()}`;
+  const map = {};
+  scheme.forEach(s => { map[key(s)] = s; });
+  incoming.forEach(s => { map[key(s)] = s; });
+  scheme = Object.values(map);
+  document.getElementById('upload-ok-scheme').textContent = `✓ ${scheme.length} scheme rows total (merged from ${name})`;
 }
 
 function updateDataStatus() {
