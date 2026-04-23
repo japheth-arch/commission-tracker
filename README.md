@@ -1,0 +1,435 @@
+[index.html](https://github.com/user-attachments/files/27001408/index.html)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Commission Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eeede8;
+    --text: #1a1a18; --text2: #6b6a65; --text3: #9c9a92;
+    --border: rgba(30,30,20,0.12); --border2: rgba(30,30,20,0.22);
+    --green: #639922; --green-bg: #EAF3DE; --green-text: #3B6D11;
+    --amber-bg: #FAEEDA; --amber-text: #854F0B;
+    --red-bg: #FCEBEB; --red-text: #A32D2D;
+    --radius: 8px; --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #28281f; --bg3: #1a1a14;
+      --text: #e8e6db; --text2: #9c9a92; --text3: #6b6a65;
+      --border: rgba(255,255,240,0.1); --border2: rgba(255,255,240,0.18);
+      --green: #97C459; --green-bg: #173404; --green-text: #C0DD97;
+      --amber-bg: #412402; --amber-text: #FAC775;
+      --red-bg: #501313; --red-text: #F7C1C1;
+    }
+  }
+  body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; }
+  .app-shell { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; background: var(--bg2); border-radius: var(--radius-lg); padding: 4px; width: fit-content; }
+  .tab { font-size: 13px; padding: 7px 14px; cursor: pointer; border: none; background: none; color: var(--text2); border-radius: var(--radius); font-family: var(--font); transition: background .15s, color .15s; }
+  .tab.active { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .tab:hover:not(.active) { color: var(--text); background: rgba(0,0,0,0.04); }
+  .section { display: none; }
+  .section.active { display: block; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .metric-value { font-size: 24px; font-weight: 500; }
+  .metric-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 15px; font-weight: 500; margin-bottom: 1rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--text2); }
+  input, select, textarea {
+    width: 100%; padding: 8px 10px; border: 0.5px solid var(--border2);
+    border-radius: var(--radius); font-size: 14px; background: var(--bg);
+    color: var(--text); font-family: var(--font);
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--text); }
+  .btn { padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); font-family: var(--font); transition: background .15s; }
+  .btn:hover { background: var(--bg2); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn.danger { color: var(--red-text); border-color: rgba(162,45,45,0.3); }
+  .btn.danger:hover { background: var(--red-bg); }
+  .btn-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 550px; }
+  th { text-align: left; font-weight: 500; color: var(--text2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
+  td { padding: 11px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg2); }
+  .badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 500; }
+  .badge.won { background: var(--green-bg); color: var(--green-text); }
+  .badge.pending { background: var(--amber-bg); color: var(--amber-text); }
+  .badge.lost { background: var(--red-bg); color: var(--red-text); }
+  .comm-val { font-weight: 500; color: var(--green-text); }
+  .tier-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 10px; }
+  @media (max-width: 500px) { .tier-row { grid-template-columns: 1fr 1fr; } }
+  .criteria-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 10px; }
+  .chart-bar-label { font-size: 13px; color: var(--text2); margin-bottom: 3px; }
+  .chart-bar-outer { background: var(--bg2); border-radius: 4px; height: 24px; overflow: hidden; margin-bottom: 10px; }
+  .chart-bar-inner { height: 100%; background: var(--green); border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; transition: width .4s; min-width: 40px; }
+  .chart-bar-val { font-size: 12px; color: #fff; font-weight: 500; white-space: nowrap; }
+  .preview-box { font-size: 13px; color: var(--text2); background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; margin-top: 2px; min-height: 36px; }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 13px; }
+  .section-sub { font-size: 13px; color: var(--text2); margin-bottom: 1rem; }
+  .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); font-size: 13px; padding: 9px 18px; border-radius: 20px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 99; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <h1>Commission Tracker</h1>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab" onclick="switchTab('deals')">Deals</button>
+    <button class="tab" onclick="switchTab('add')">+ Add deal</button>
+    <button class="tab" onclick="switchTab('settings')">Commission rules</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="section active" id="tab-dashboard">
+    <div class="metric-grid" id="metrics"></div>
+    <div class="card">
+      <div class="card-title">Commission by rep</div>
+      <div id="rep-chart"></div>
+    </div>
+  </div>
+
+  <!-- DEALS -->
+  <div class="section" id="tab-deals">
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th><th>Rep</th><th>Revenue</th><th>Rate</th><th>Commission</th><th>Status</th><th>Date</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="deals-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD DEAL -->
+  <div class="section" id="tab-add">
+    <div class="card">
+      <div class="card-title">New deal</div>
+      <div class="form-row">
+        <div class="form-group"><label>Client name</label><input id="f-client" type="text" placeholder="Acme Corp" /></div>
+        <div class="form-group"><label>Rep name</label><input id="f-rep" type="text" placeholder="Jane Smith" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Revenue ($)</label><input id="f-revenue" type="number" placeholder="25000" min="0" /></div>
+        <div class="form-group"><label>Status</label>
+          <select id="f-status"><option value="pending">Pending</option><option value="won">Won</option><option value="lost">Lost</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Date closed</label><input id="f-date" type="date" /></div>
+        <div class="form-group"><label>Override rate % (blank = auto from rules)</label><input id="f-override" type="number" placeholder="e.g. 8.5" min="0" max="100" step="0.1" /></div>
+      </div>
+      <div class="preview-box" id="rate-preview">Enter a revenue amount to preview commission.</div>
+      <div class="btn-row">
+        <button class="btn" onclick="clearForm()">Clear</button>
+        <button class="btn primary" onclick="addDeal()">Add deal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="section" id="tab-settings">
+    <div class="card">
+      <div class="card-title">Commission tiers</div>
+      <p class="section-sub">Rate applied based on deal revenue. Highest matching tier wins.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:6px;">
+        <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;">Min revenue ($)</label>
+        <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;">Max revenue ($)</label>
+        <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;">Rate (%)</label>
+        <span></span>
+      </div>
+      <div id="tiers-list"></div>
+      <button class="btn" onclick="addTier()">+ Add tier</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Criteria bonuses</div>
+      <p class="section-sub">Extra % added on top of the base tier rate. Use these to reward new clients, multi-year deals, etc.</p>
+      <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:6px;">
+        <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;">Criteria label</label>
+        <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;">Bonus (%)</label>
+        <span></span>
+      </div>
+      <div id="criteria-list"></div>
+      <button class="btn" onclick="addCriteria()">+ Add bonus rule</button>
+    </div>
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div class="card-title" style="margin:0 0 4px;">Data</div>
+        <p class="section-sub" style="margin:0;">All data is saved in your browser automatically.</p>
+      </div>
+      <button class="btn danger" onclick="resetData()">Reset all data</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE_KEY = 'commission-tracker-v1';
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return null;
+}
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ deals, tiers, criterias, nextId })); } catch(e) {}
+}
+
+let { deals, tiers, criterias, nextId } = load() || {
+  deals: [
+    { id:1, client:'Globex', rep:'Alice', revenue:15000, status:'won', override:null, date:'2026-02-10' },
+    { id:2, client:'Initech', rep:'Bob', revenue:52000, status:'won', override:null, date:'2026-03-05' },
+    { id:3, client:'Umbrella', rep:'Alice', revenue:8000, status:'pending', override:null, date:'2026-04-01' },
+    { id:4, client:'Waystar', rep:'Carol', revenue:120000, status:'won', override:null, date:'2026-01-22' },
+  ],
+  tiers: [
+    { min:0, max:9999, rate:5 },
+    { min:10000, max:49999, rate:7 },
+    { min:50000, max:99999, rate:9 },
+    { min:100000, max:null, rate:12 },
+  ],
+  criterias: [
+    { label:'New client', bonus:1.5 },
+    { label:'Multi-year contract', bonus:2 },
+  ],
+  nextId: 5
+};
+
+function getTierRate(rev) {
+  const match = [...tiers].sort((a,b) => b.min - a.min).find(t => rev >= t.min && (t.max === null || rev <= t.max));
+  return match ? match.rate : 0;
+}
+
+function getCommission(deal) {
+  if (deal.override !== null && deal.override !== '' && deal.override !== undefined) {
+    const r = parseFloat(deal.override);
+    return { rate: r, commission: deal.revenue * r / 100, isOverride: true };
+  }
+  const r = getTierRate(deal.revenue);
+  return { rate: r, commission: deal.revenue * r / 100, isOverride: false };
+}
+
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+function pct(n) { return parseFloat(n).toFixed(1) + '%'; }
+function fmtDate(d) { if (!d) return '—'; try { return new Date(d + 'T00:00:00').toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric'}); } catch(e) { return d; } }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  const labels = { dashboard: 'Dashboard', deals: 'Deals', add: '+ Add deal', settings: 'Commission rules' };
+  document.querySelectorAll('.tab').forEach(t => { if (t.textContent.trim() === labels[tab]) t.classList.add('active'); });
+  render();
+}
+
+function render() {
+  renderMetrics();
+  renderDealsTable();
+  renderRepChart();
+  renderTiers();
+  renderCriteria();
+  renderRatePreview();
+}
+
+function renderMetrics() {
+  const won = deals.filter(d => d.status === 'won');
+  const totalRev = won.reduce((s,d) => s + d.revenue, 0);
+  const totalComm = won.reduce((s,d) => s + getCommission(d).commission, 0);
+  const pending = deals.filter(d => d.status === 'pending').reduce((s,d) => s + d.revenue, 0);
+  const avgRate = totalRev ? (totalComm / totalRev * 100) : 0;
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Won revenue</div><div class="metric-value">${fmt(totalRev)}</div></div>
+    <div class="metric"><div class="metric-label">Total commissions</div><div class="metric-value">${fmt(totalComm)}</div><div class="metric-sub">${pct(avgRate)} avg rate</div></div>
+    <div class="metric"><div class="metric-label">Deals won</div><div class="metric-value">${won.length}</div><div class="metric-sub">of ${deals.length} total</div></div>
+    <div class="metric"><div class="metric-label">Pipeline</div><div class="metric-value">${fmt(pending)}</div><div class="metric-sub">pending</div></div>
+  `;
+}
+
+function renderDealsTable() {
+  const tbody = document.getElementById('deals-table');
+  if (!deals.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No deals yet. Add your first deal above.</td></tr>'; return; }
+  const sorted = [...deals].sort((a,b) => (b.date||'') > (a.date||'') ? 1 : -1);
+  tbody.innerHTML = sorted.map(d => {
+    const { rate, commission, isOverride } = getCommission(d);
+    return `<tr>
+      <td>${escHtml(d.client)}</td>
+      <td>${escHtml(d.rep)}</td>
+      <td>${fmt(d.revenue)}</td>
+      <td>${pct(rate)}${isOverride ? ' <span style="font-size:10px;color:var(--text3)">(override)</span>' : ''}</td>
+      <td class="comm-val">${fmt(commission)}</td>
+      <td><span class="badge ${d.status}">${d.status}</span></td>
+      <td style="color:var(--text3)">${fmtDate(d.date)}</td>
+      <td><button class="btn danger" style="padding:4px 10px;font-size:12px;" onclick="removeDeal(${d.id})">Remove</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRepChart() {
+  const won = deals.filter(d => d.status === 'won');
+  const reps = {};
+  won.forEach(d => { reps[d.rep] = (reps[d.rep] || 0) + getCommission(d).commission; });
+  const sorted = Object.entries(reps).sort((a,b) => b[1] - a[1]);
+  const max = sorted[0]?.[1] || 1;
+  const el = document.getElementById('rep-chart');
+  if (!sorted.length) { el.innerHTML = '<div class="empty-state" style="padding:1.5rem">No won deals yet.</div>'; return; }
+  el.innerHTML = sorted.map(([rep, val]) => `
+    <div class="chart-bar-label">${escHtml(rep)}</div>
+    <div class="chart-bar-outer">
+      <div class="chart-bar-inner" style="width:${Math.max(5, val/max*100)}%">
+        <span class="chart-bar-val">${fmt(val)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTiers() {
+  document.getElementById('tiers-list').innerHTML = tiers.map((t, i) => `
+    <div class="tier-row">
+      <input type="number" value="${t.min}" min="0" placeholder="0" onchange="updateTier(${i},'min',this.value)" />
+      <input type="number" value="${t.max === null ? '' : t.max}" placeholder="No limit" onchange="updateTier(${i},'max',this.value)" />
+      <input type="number" value="${t.rate}" min="0" max="100" step="0.1" placeholder="%" onchange="updateTier(${i},'rate',this.value)" />
+      <button class="btn danger" style="padding:8px 10px;font-size:12px;white-space:nowrap;" onclick="removeTier(${i})">Remove</button>
+    </div>
+  `).join('');
+}
+
+function renderCriteria() {
+  document.getElementById('criteria-list').innerHTML = criterias.map((c, i) => `
+    <div class="criteria-row">
+      <input type="text" value="${escHtml(c.label)}" onchange="updateCriteria(${i},'label',this.value)" />
+      <input type="number" value="${c.bonus}" min="0" max="100" step="0.1" onchange="updateCriteria(${i},'bonus',this.value)" />
+      <button class="btn danger" style="padding:8px 10px;font-size:12px;" onclick="removeCriteria(${i})">Remove</button>
+    </div>
+  `).join('');
+}
+
+function renderRatePreview() {
+  const rev = parseFloat(document.getElementById('f-revenue')?.value);
+  const override = document.getElementById('f-override')?.value;
+  const el = document.getElementById('rate-preview');
+  if (!el) return;
+  if (override && !isNaN(parseFloat(override))) {
+    const r = parseFloat(override);
+    el.textContent = `Override rate: ${r.toFixed(1)}% → Commission: ${rev ? fmt(rev * r / 100) : '$—'}`;
+  } else if (rev && !isNaN(rev)) {
+    const r = getTierRate(rev);
+    el.textContent = `Auto rate from tiers: ${pct(r)} → Commission: ${fmt(rev * r / 100)}`;
+  } else {
+    el.textContent = 'Enter a revenue amount to preview commission.';
+  }
+}
+
+function addDeal() {
+  const client = document.getElementById('f-client').value.trim();
+  const rep = document.getElementById('f-rep').value.trim();
+  const revenue = parseFloat(document.getElementById('f-revenue').value);
+  const status = document.getElementById('f-status').value;
+  const date = document.getElementById('f-date').value;
+  const ov = document.getElementById('f-override').value;
+  if (!client || !rep || isNaN(revenue) || revenue <= 0) {
+    toast('Please fill in client, rep, and revenue.');
+    return;
+  }
+  deals.push({ id: nextId++, client, rep, revenue, status, override: ov !== '' ? parseFloat(ov) : null, date: date || new Date().toISOString().slice(0,10) });
+  save();
+  clearForm();
+  switchTab('deals');
+  toast('Deal added!');
+}
+
+function clearForm() {
+  ['f-client','f-rep','f-revenue','f-override','f-date'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-status').value = 'pending';
+  renderRatePreview();
+}
+
+function removeDeal(id) {
+  if (!confirm('Remove this deal?')) return;
+  deals = deals.filter(d => d.id !== id);
+  save(); render();
+  toast('Deal removed.');
+}
+
+function updateTier(i, key, val) {
+  if (key === 'max') tiers[i].max = val === '' ? null : parseFloat(val);
+  else tiers[i][key] = parseFloat(val) || 0;
+  save(); renderRatePreview();
+}
+
+function addTier() {
+  tiers.push({ min: 0, max: null, rate: 5 });
+  save(); renderTiers();
+}
+
+function removeTier(i) {
+  tiers.splice(i, 1);
+  save(); renderTiers();
+}
+
+function updateCriteria(i, key, val) {
+  criterias[i][key] = key === 'bonus' ? parseFloat(val) || 0 : val;
+  save();
+}
+
+function addCriteria() {
+  criterias.push({ label: 'New rule', bonus: 1 });
+  save(); renderCriteria();
+}
+
+function removeCriteria(i) {
+  criterias.splice(i, 1);
+  save(); renderCriteria();
+}
+
+function resetData() {
+  if (!confirm('Reset all data? This cannot be undone.')) return;
+  localStorage.removeItem(STORE_KEY);
+  location.reload();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('f-revenue')?.addEventListener('input', renderRatePreview);
+document.getElementById('f-override')?.addEventListener('input', renderRatePreview);
+
+// Set today's date as default
+document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+
+render();
+</script>
+</body>
+</html>
