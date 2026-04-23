@@ -204,6 +204,7 @@ tr:hover td{background:var(--bg3);}
     <span class="nav-section">Overview</span>
     <div class="nav-item active" onclick="nav('dashboard')"><span class="nav-dot"></span>Dashboard</div>
     <div class="nav-item" onclick="nav('byPerson')"><span class="nav-dot"></span>By Person</div>
+    <div class="nav-item" onclick="nav('people')"><span class="nav-dot"></span>People</div>
     <span class="nav-section">Data</span>
     <div class="nav-item" onclick="nav('projects')"><span class="nav-dot"></span>Projects</div>
     <div class="nav-item" onclick="nav('upload')"><span class="nav-dot"></span>Upload CSVs</div>
@@ -410,6 +411,66 @@ tr:hover td{background:var(--bg3);}
                 <button id="add-mapping-btn" class="btn btn-sm" onclick="addTypeMapping()" style="display:none;">+ Add</button>
               </div>
               <div class="card-body" id="type-mappings-body" style="font-size:11px;color:var(--text3);line-height:1.9;font-family:var(--mono);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PEOPLE -->
+    <div id="page-people" class="page">
+      <div class="topbar">
+        <div><div class="page-title">People</div><div class="page-sub" id="people-sub">per-person commission breakdown with auto-calculation</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <select id="people-quarter-filter" onchange="renderPeoplePage()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All quarters</option>
+          </select>
+          <select id="people-status-filter" onchange="renderPeoplePage()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All statuses</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </div>
+      </div>
+      <div class="content" style="padding:0;">
+        <!-- Person selector pills -->
+        <div id="people-pills" style="display:flex;flex-wrap:wrap;gap:.5rem;padding:1.25rem 2rem;border-bottom:1px solid var(--line);background:var(--bg2);"></div>
+
+        <!-- Person detail panel -->
+        <div style="padding:1.5rem 2rem;">
+          <!-- Summary cards -->
+          <div id="people-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.875rem;margin-bottom:1.5rem;"></div>
+
+          <!-- Commission breakdown table -->
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="card-header" style="padding:.875rem 1.25rem;">
+              <span class="card-title" id="people-table-title">Select a person above</span>
+              <div style="display:flex;gap:.5rem;align-items:center;">
+                <span id="people-computed-badge" style="display:none;font-family:var(--mono);font-size:10px;color:var(--accent);background:rgba(200,240,96,.1);border:1px solid rgba(200,240,96,.2);border-radius:20px;padding:2px 10px;">auto-calculated</span>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Project Tag</th>
+                    <th>Type</th>
+                    <th>Region</th>
+                    <th>Role</th>
+                    <th>Project Amount</th>
+                    <th>Source %</th>
+                    <th>Mgmt %</th>
+                    <th>Full Comm?</th>
+                    <th>Ortus Prod</th>
+                    <th>Deflated</th>
+                    <th>Inflated</th>
+                    <th>Commission</th>
+                    <th>Quarter</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="people-table-body"></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -908,6 +969,7 @@ function nav(id) {
   });
   if (id === 'database') renderRolesTable();
   if (id === 'rules') { renderRulesPage(); lockRules(); }
+  if (id === 'people') renderPeoplePage();
 }
 
 function rulesTab(el, id) {
@@ -1314,6 +1376,288 @@ function renderRulesPage() {
   renderTypeMappings();
   document.getElementById('r-partial-pct').value = rulesData.partialPct;
   document.getElementById('r-pct-display').textContent = rulesData.partialPct;
+}
+
+
+// ── People / Per-Person Commission Engine ──
+let selectedPersonTab = null;
+
+// Map project type string → category key
+function getTypeCategory(typeStr) {
+  if (!typeStr) return null;
+  const t = typeStr.toLowerCase().trim();
+  const VRT = ['virtual roundtable','virtual roundtable w/ add-ons','virtual guesting','guesting (no logistics involved, client-led project)'];
+  const VMC = ['virtual masterclass'];
+  const PRT = ['physical guesting','lunch','lunch w/ add-ons','dinner','dinner w/ add-on','dinner w/ add-on','breakfast','appointment setting','appointment setting (appointment setting only w/o events)','dinner roundtable','guesting (with logistics involved, client-led project)'];
+  const PMC = ['in-person masterclass','in-person masterclass w/ add-ons','in-person masterclass','ortus productions (bespoke client-led events, unlike our usual offerings)','ortus productions','physical guesting (no logistics involved, client-led project)','ortus productions and physical guesting'];
+  if (VRT.some(x => t.includes(x.toLowerCase()) || x.toLowerCase().includes(t.substring(0,12)))) return 'VRT';
+  if (VMC.some(x => t.includes(x.toLowerCase()))) return 'VMC';
+  if (PMC.some(x => t.includes(x.toLowerCase()))) return 'PMC';
+  if (PRT.some(x => t.includes(x.toLowerCase()))) return 'PRT';
+  // Fallback partial matches
+  if (t.includes('virtual')) return t.includes('master') ? 'VMC' : 'VRT';
+  if (t.includes('masterclass') || t.includes('in-person')) return 'PMC';
+  if (t.includes('ortus prod')) return 'PMC';
+  if (t.includes('roundtable') || t.includes('round table')) return t.includes('virtual') ? 'VRT' : 'PRT';
+  if (t.includes('dinner') || t.includes('lunch') || t.includes('breakfast')) return 'PRT';
+  return 'PRT'; // default
+}
+
+// Determine if project qualifies for full commission
+function isFullCommission(project) {
+  const fullField = (project['Full Commision'] || project['Full Commission'] || '').trim().toUpperCase();
+  if (fullField === 'Y') return true;
+  if (fullField === 'N') return false;
+  // Auto-compute from thresholds
+  const amount = project._amount;
+  const nProj = project._nProjects || 1;
+  const city = project['City/Region'] || project['City'] || project['Region'] || '';
+  const region = getRegion(city);
+  const typeKey = getTypeCategory(project['Type']);
+  if (!region || !typeKey) return true;
+  const regionKey = (region === 'NA') ? 'NA' : 'EU';
+  const threshArr = rulesData.thresholds[regionKey]?.[typeKey];
+  if (!threshArr) return true;
+  let threshIdx = 0;
+  if (nProj >= 4) threshIdx = 2;
+  else if (nProj >= 2) threshIdx = 1;
+  return amount >= threshArr[threshIdx];
+}
+
+// Look up scheme rates for a person on a project
+function getSchemeRates(receiverName, sourceName, managementName, dateStr) {
+  if (!scheme.length) return null;
+  const d = dateStr ? new Date(dateStr) : null;
+  // Find applicable date: earliest date >= project date
+  const matches = scheme.filter(s =>
+    s.receiver && s.receiver.toLowerCase() === receiverName.toLowerCase() &&
+    s.source && s.source.toLowerCase() === (sourceName||'').toLowerCase() &&
+    s.management && s.management.toLowerCase() === (managementName||'').toLowerCase()
+  );
+  if (!matches.length) return null;
+  if (!d) return matches[0];
+  // Find version where applicableDate >= project date, pick earliest
+  const valid = matches.filter(s => s.applicableDate && s.applicableDate >= d);
+  if (!valid.length) {
+    // Fallback: latest date <= project date
+    const past = matches.filter(s => s.applicableDate && s.applicableDate <= d);
+    past.sort((a,b) => b.applicableDate - a.applicableDate);
+    return past[0] || matches[0];
+  }
+  valid.sort((a,b) => a.applicableDate - b.applicableDate);
+  return valid[0];
+}
+
+// Calculate commission for a specific person on a specific project
+function calcPersonCommission(person, project) {
+  const source = project['Source'] || '';
+  const management = project['Management'] || '';
+  const tl = project['TL'] || '';
+  const dateClosed = project._dateClosed ? project._dateClosed.toISOString().slice(0,10) : '';
+  const amount = project._amount;
+  if (!amount) return null;
+
+  const role = getRoleAt(person, dateClosed) || 'CD';
+  const isSource = source.toLowerCase() === person.toLowerCase();
+  const isManagement = management.toLowerCase() === person.toLowerCase();
+  const isTL = tl.toLowerCase() === person.toLowerCase();
+
+  if (!isSource && !isManagement && !isTL) return null;
+
+  // Get base rates from scheme
+  const rates = getSchemeRates(person, source, management, dateClosed);
+  let sourceRate = rates ? rates.sourceRate / 100 : 0;
+  let managementRate = rates ? rates.managementRate / 100 : 0;
+  let baseRate = sourceRate + managementRate;
+
+  // TL flat rate
+  if (isTL && role === 'TL') {
+    const tlMod = rulesData.modifiers.find(m => m.key === 'tlRate');
+    return { commission: amount * (tlMod ? tlMod.value / 100 : 0.0075), sourceRate: 0, managementRate: tlMod ? tlMod.value / 100 : 0.0075, role: 'TL', baseRate: tlMod ? tlMod.value / 100 : 0.0075 };
+  }
+
+  if (!baseRate) return null;
+
+  // Full commission check
+  const fullComm = isFullCommission(project);
+  if (!fullComm) {
+    const pctMod = rulesData.modifiers.find(m => m.key === 'partialPct') || { value: 65 };
+    baseRate *= (rulesData.partialPct || 65) / 100;
+    sourceRate *= (rulesData.partialPct || 65) / 100;
+    managementRate *= (rulesData.partialPct || 65) / 100;
+  }
+
+  // Ortus Prod multiplier
+  const isOrtusProd = project._ortusProd;
+  if (isOrtusProd) {
+    const ortusMod = rulesData.modifiers.find(m => m.key === 'ortusMult');
+    const mult = ortusMod ? ortusMod.value : 1.5;
+    baseRate *= mult; sourceRate *= mult; managementRate *= mult;
+  }
+
+  // Deflation/Inflation
+  const deflated = project._deflated;
+  const inflated = project._inflated;
+  if (role === 'CD') {
+    const defMod = rulesData.modifiers.find(m => m.key === 'cdDeflated');
+    const infMod = rulesData.modifiers.find(m => m.key === 'cdInflated');
+    if (deflated && !inflated) {
+      baseRate *= (defMod ? defMod.value : 84) / 100;
+    } else if (inflated) {
+      const recovery = (infMod ? infMod.value : 16) / 100;
+      baseRate = baseRate * (defMod ? defMod.value : 84) / 100 + baseRate * recovery;
+      baseRate *= 1.5;
+    }
+  } else if (role === 'AM') {
+    const defMod = rulesData.modifiers.find(m => m.key === 'amDeflated');
+    const infMod = rulesData.modifiers.find(m => m.key === 'amInflated');
+    if (deflated && !inflated) {
+      baseRate *= (defMod ? defMod.value : 71) / 100;
+    } else if (inflated) {
+      const recovery = (infMod ? infMod.value : 29) / 100;
+      baseRate = baseRate * (defMod ? defMod.value : 71) / 100 + baseRate * recovery;
+      baseRate *= 1.5;
+    }
+  }
+
+  return {
+    commission: amount * baseRate,
+    sourceRate,
+    managementRate,
+    baseRate,
+    role,
+    fullComm,
+    isOrtusProd,
+    deflated,
+    inflated
+  };
+}
+
+// Get all projects for a person (computed)
+function getProjectsForPerson(person, quarterFilter, statusFilter) {
+  return projects
+    .filter(p => {
+      if (!p['Project Tag']) return false;
+      if (p['Type'] === 'CANCELLED' && p._amount === 0) return false;
+      const src = (p['Source'] || '').toLowerCase();
+      const mgmt = (p['Management'] || '').toLowerCase();
+      const tl = (p['TL'] || '').toLowerCase();
+      const pLow = person.toLowerCase();
+      if (src !== pLow && mgmt !== pLow && tl !== pLow) {
+        // Also check pre-computed columns
+        if (!(person in p._personComms)) return false;
+      }
+      if (quarterFilter && p['Quarter Closed'] !== quarterFilter) return false;
+      return true;
+    });
+}
+
+// ── Render People Page ──
+function renderPeoplePage() {
+  const quarterFilter = document.getElementById('people-quarter-filter')?.value || '';
+  const statusFilter = document.getElementById('people-status-filter')?.value || '';
+
+  // Build pill list
+  const allPeople = getAllPeople();
+  // Also include people who are source/mgmt/tl in projects
+  const fromProjects = new Set();
+  projects.forEach(p => {
+    if (p['Source']) fromProjects.add(p['Source']);
+    if (p['Management']) fromProjects.add(p['Management']);
+    if (p['TL']) fromProjects.add(p['TL']);
+  });
+  const merged = [...new Set([...allPeople, ...fromProjects])].filter(p => p && p.trim()).sort();
+
+  const pillsEl = document.getElementById('people-pills');
+  if (pillsEl) {
+    pillsEl.innerHTML = merged.map(p => `
+      <div onclick="selectPersonTab('${esc(p)}')" style="padding:.4rem .875rem;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid ${selectedPersonTab===p?'var(--accent)':'var(--line2)'};background:${selectedPersonTab===p?'rgba(200,240,96,.1)':'var(--bg3)'};color:${selectedPersonTab===p?'var(--accent)':'var(--text2)'};transition:all .15s;font-family:var(--mono);">
+        ${esc(p)}
+      </div>`).join('');
+  }
+
+  // Populate quarter filter
+  const qf = document.getElementById('people-quarter-filter');
+  if (qf) {
+    const cur = qf.value;
+    const quarters = getQuarters();
+    qf.innerHTML = '<option value="">All quarters</option>' + quarters.map(q => `<option value="${q}"${q===cur?' selected':''}>${q}</option>`).join('');
+  }
+
+  if (!selectedPersonTab) {
+    document.getElementById('people-metrics').innerHTML = '';
+    document.getElementById('people-table-body').innerHTML = '<tr><td colspan="14" class="empty">Select a person above to view their commission breakdown.</td></tr>';
+    document.getElementById('people-table-title').textContent = 'Select a person above';
+    return;
+  }
+
+  renderPersonTab(selectedPersonTab, quarterFilter, statusFilter);
+}
+
+function selectPersonTab(person) {
+  selectedPersonTab = person;
+  renderPeoplePage();
+}
+
+function renderPersonTab(person, quarterFilter, statusFilter) {
+  document.getElementById('people-table-title').textContent = `${person} — commission detail`;
+  document.getElementById('people-computed-badge').style.display = '';
+
+  const projs = getProjectsForPerson(person, quarterFilter, statusFilter);
+  const rows = [];
+  let totalComm = 0, totalRevenue = 0, paidComm = 0;
+
+  projs.forEach(p => {
+    // Try computed first, fall back to pre-stored value
+    const computed = calcPersonCommission(person, p);
+    const stored = p._personComms?.[person];
+    const comm = computed ? computed.commission : (stored || 0);
+    if (!comm && !stored) return;
+
+    totalComm += comm;
+    totalRevenue += p._amount;
+    const isPaid = p['Date Paid'] && p['Date Paid'] !== 'Not Paid';
+    if (isPaid) paidComm += comm;
+
+    const region = getRegion(p['City/Region'] || p['City'] || '');
+    const role = computed ? computed.role : getRoleAt(person, p._dateClosed?.toISOString?.()?.slice(0,10)) || '—';
+    const srcPct = computed ? (computed.sourceRate * 100).toFixed(2) + '%' : '—';
+    const mgmtPct = computed ? (computed.managementRate * 100).toFixed(2) + '%' : '—';
+    const fullComm = computed ? computed.fullComm : p._fullComm;
+    const ortusProd = computed ? computed.isOrtusProd : p._ortusProd;
+    const deflated = computed ? computed.deflated : p._deflated;
+    const inflated = computed ? computed.inflated : p._inflated;
+
+    rows.push(`<tr>
+      <td>${esc(p['Project Tag'])}</td>
+      <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p['Type'])}">${esc(p['Type']||'—')}</td>
+      <td><span class="badge ${region==='APAC'?'badge-green':region==='EU'?'badge-blue':region==='NA'?'badge-amber':'badge-gray'}">${region||'—'}</span></td>
+      <td><span class="badge ${role==='CD'?'badge-blue':role==='AM'?'badge-amber':role==='TL'?'badge-green':'badge-gray'}">${role}</span></td>
+      <td class="num">${fmt(p._amount)}</td>
+      <td class="num" style="color:var(--text3)">${srcPct}</td>
+      <td class="num" style="color:var(--text3)">${mgmtPct}</td>
+      <td>${fullComm ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-amber">65%</span>'}</td>
+      <td>${ortusProd ? '<span class="badge badge-amber">×1.5</span>' : '—'}</td>
+      <td>${deflated ? '<span class="badge badge-red">Yes</span>' : '—'}</td>
+      <td>${inflated ? '<span class="badge badge-blue">Yes</span>' : '—'}</td>
+      <td class="num" style="color:var(--accent);font-weight:500;">${fmt(comm)}</td>
+      <td><span class="badge badge-gray">${esc(p['Quarter Closed']||'—')}</span></td>
+      <td>${isPaid ? '<span class="badge badge-green">Paid</span>' : '<span class="badge badge-red">Unpaid</span>'}</td>
+    </tr>`);
+  });
+
+  document.getElementById('people-table-body').innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="14" class="empty">No projects found for this person with current filters.</td></tr>';
+
+  const role = getRoleAt(person, new Date().toISOString().slice(0,10)) || '—';
+  document.getElementById('people-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Role</div><div class="metric-value" style="font-size:20px;">${role}</div></div>
+    <div class="metric"><div class="metric-label">Projects</div><div class="metric-value">${rows.length}</div></div>
+    <div class="metric"><div class="metric-label">Total commission</div><div class="metric-value green" style="font-size:20px;">${fmt(totalComm)}</div></div>
+    <div class="metric"><div class="metric-label">Paid out</div><div class="metric-value" style="font-size:20px;">${fmt(paidComm)}</div><div class="metric-sub">${fmt(totalComm - paidComm)} pending</div></div>
+    <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value" style="font-size:20px;">${fmtShort(totalRevenue)}</div></div>
+  `;
 }
 
 function esc(s) {
