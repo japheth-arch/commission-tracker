@@ -203,6 +203,7 @@ tr:hover td{background:var(--bg3);}
     <div class="nav-item" onclick="nav('projects')"><span class="nav-dot"></span>Projects</div>
     <div class="nav-item" onclick="nav('upload')"><span class="nav-dot"></span>Upload CSVs</div>
     <span class="nav-section">Config</span>
+    <div class="nav-item" onclick="nav('database')"><span class="nav-dot"></span>Database</div>
     <div class="nav-item" onclick="nav('rules')"><span class="nav-dot"></span>Commission Rules</div>
     <div style="margin-top:auto;padding:1.25rem;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
@@ -412,6 +413,83 @@ tr:hover td{background:var(--bg3);}
                 <div style="margin-bottom:.75rem;"><span class="badge badge-blue" style="margin-bottom:.25rem;display:inline-block;">Virtual MC</span><br>Virtual Masterclass</div>
                 <div style="margin-bottom:.75rem;"><span class="badge badge-amber" style="margin-bottom:.25rem;display:inline-block;">Physical RT</span><br>Physical Guesting, Lunch, Dinner, Breakfast, Appointment Setting, Dinner Roundtable, Guesting (with logistics)</div>
                 <div><span class="badge badge-red" style="margin-bottom:.25rem;display:inline-block;">Physical MC</span><br>In-Person Masterclass, Ortus Productions, Physical Guesting (no logistics), Ortus Productions and Physical Guesting</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATABASE -->
+    <div id="page-database" class="page">
+      <div class="topbar">
+        <div><div class="page-title">Database</div><div class="page-sub">roles, regions & lookup — editable, date-aware</div></div>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-accent btn-sm" onclick="saveDatabase()">Save all changes</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="tabs" id="db-tabs">
+          <div class="tab active" onclick="dbTab(this,'roles')">Roles</div>
+          <div class="tab" onclick="dbTab(this,'regions')">Regions</div>
+          <div class="tab" onclick="dbTab(this,'lookup')">Region Lookup</div>
+        </div>
+
+        <!-- ROLES TAB -->
+        <div id="db-roles">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <p style="font-size:12px;color:var(--text3);">Each person can have multiple role entries with different applicable dates. The role active on a project's Date Closed is used for commission calculations.</p>
+            <button class="btn btn-sm" onclick="addRoleRow()">+ Add entry</button>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="table-wrap">
+              <table id="roles-table">
+                <thead><tr><th>Person</th><th>Role</th><th>Effective From</th><th>Effective To</th><th>Notes</th><th></th></tr></thead>
+                <tbody id="roles-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- REGIONS TAB -->
+        <div id="db-regions" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <p style="font-size:12px;color:var(--text3);">Map city/region values to APAC, EU, or NA. Used for full commission threshold checks.</p>
+            <div style="display:flex;gap:.5rem;">
+              <input id="region-search" placeholder="Search city..." oninput="renderRegionsTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);" />
+              <button class="btn btn-sm" onclick="addRegionRow()">+ Add entry</button>
+            </div>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="table-wrap">
+              <table id="regions-table">
+                <thead><tr><th>City / Region value</th><th>Maps to</th><th></th></tr></thead>
+                <tbody id="regions-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOOKUP TAB -->
+        <div id="db-lookup" style="display:none;">
+          <div class="card" style="max-width:480px;">
+            <div class="card-header"><span class="card-title">Region lookup</span></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:.75rem;">
+                <div class="field"><label>City / Region</label><input id="lookup-city" placeholder="e.g. Singapore" oninput="doLookup()" /></div>
+                <div id="lookup-result" style="font-family:var(--mono);font-size:13px;color:var(--text3);padding:.75rem;background:var(--bg3);border-radius:var(--r);min-height:40px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="max-width:480px;margin-top:1rem;">
+            <div class="card-header"><span class="card-title">Role lookup</span></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:.75rem;">
+                <div style="display:flex;gap:.75rem;">
+                  <div class="field" style="flex:1;"><label>Person</label><input id="lookup-person" placeholder="e.g. Andrea" oninput="doRoleLookup()" /></div>
+                  <div class="field" style="flex:1;"><label>As of date</label><input id="lookup-date" type="date" oninput="doRoleLookup()" /></div>
+                </div>
+                <div id="lookup-role-result" style="font-family:var(--mono);font-size:13px;color:var(--text3);padding:.75rem;background:var(--bg3);border-radius:var(--r);min-height:40px;"></div>
               </div>
             </div>
           </div>
@@ -832,6 +910,7 @@ function nav(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.textContent.trim().toLowerCase().replace(/\s+/g,'') === id.toLowerCase().replace(/\s+/g,'')) n.classList.add('active');
   });
+  if (id === 'database') renderRolesTable();
 }
 
 function rulesTab(el, id) {
@@ -847,6 +926,193 @@ function toast(msg, type = 'ok') {
   el.textContent = msg;
   el.className = `toast ${type} show`;
   setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+
+// ── Database State ──
+const STORE_ROLES   = 'oc-roles-v1';
+const STORE_REGIONS = 'oc-regions-v1';
+
+let rolesDB = [
+  { id:1,  person:'Andrea',   role:'CD', from:'2024-01-01', to:'',          notes:'' },
+  { id:2,  person:'Andrrim',  role:'TL', from:'2024-01-01', to:'',          notes:'' },
+  { id:3,  person:'Benz',     role:'AM', from:'2024-01-01', to:'',          notes:'' },
+  { id:4,  person:'Christina',role:'CD', from:'2024-01-01', to:'',          notes:'' },
+  { id:5,  person:'Ciara',    role:'CD', from:'2024-01-01', to:'',          notes:'' },
+  { id:6,  person:'Diedona',  role:'AM', from:'2024-01-01', to:'',          notes:'' },
+  { id:7,  person:'Gentrit',  role:'TL', from:'2024-01-01', to:'',          notes:'' },
+  { id:8,  person:'Gio',      role:'TL', from:'2024-01-01', to:'',          notes:'' },
+  { id:9,  person:'Ines',     role:'AM', from:'2024-01-01', to:'',          notes:'' },
+  { id:10, person:'Jovana',   role:'CD', from:'2024-01-01', to:'',          notes:'' },
+  { id:11, person:'Karen',    role:'TL', from:'2024-01-01', to:'',          notes:'' },
+  { id:12, person:'Marcella', role:'CD', from:'2024-01-01', to:'',          notes:'' },
+  { id:13, person:'Neil',     role:'CD', from:'2024-01-01', to:'',          notes:'' },
+  { id:14, person:'Sab',      role:'CD', from:'2024-01-01', to:'',          notes:'' },
+];
+let dbNextId = 100;
+
+let regionsDB = {};  // city -> 'APAC' | 'EU' | 'NA'
+
+// Seed regions from the uploaded CSV data
+(function seedRegions() {
+  const apac = ["Adelaide","ANZ","APAC","APAC (ex. SG, HK, ANZ)","APAC (excluding SG and ANZ)","APAC (SG & ANZ)","APAC (Singapore & ANZ)","APAC (Singapore + ANZ)","APAC + Middle East","APAC/India","Auckland","Australia","Bangalore","Bangkok","Brisbane","China, Hong Kong, Taiwan","Dubai","Dublin","Gurgaon","Hanoi","Hanoi, Vietnam","Ho Chi Minh","Hong Kong","India","India, Malaysia, AU","India, Pakistan, Bangladesh","Indonesia","Jakarta","Kuala Lumpur","Malaysia","Manila","Melbourne","Middle East","Mumbai","North America","Penang","Perth","Philippines","Pune, India","Seoul","Singapore","South Korea","Southeast Asia","Sydney","Sydney, Melbourne","Sydney/Melbourne","Taipei","Tel Aviv","Thailand","Tokyo","Vietnam","Wellington"];
+  const eu = ["Aberdeen","Amsterdam","Antwerp","APAC (Singapore, Hong Kong, Australia)","Barcelona","Basel","Berlin","Brussels","Canberra","CEE/DACH (City TBC)","Central Europe","Copenhagen","DACH","Dallas","Dusseldorf","EMEA","Europe","Europe and North America","Europe, North America","France and Belgium","France, Benelux, Spain, UAE, Saudi Arabia, South Africa, and Italy,","Frankfurt","Germany (Munich/Dusseldorf TBC)","Global","Hamburg","Italy","Italy, France, Spain, Portugal","London","Madrid","Manchester","Milan","Milano","Munich","N/A","Nordics (final city TBC)","North America","Paris","Rome","Salzburg, Austria","Singapore","Stockholm","Stuttgart","Taiwan","TBD - Central Europe","UKI","United Kingdom","United Kingdom, Ireland","Utrecht","Vienna","Zurich"];
+  const na = ["Atlanta","Austin","Austin, Texas","Bay Area","Bogota","Boston","Brazil","Calgary","California","Canada","Central USA","Charlotte","Charlotte/Washington","Chicago","Colombia","Costa Rica","Dallas","Denver","East Coast US","Eastern Europe + DACH","Eastern USA","Global (NA and Europe)","Guatemala","Houston","Irvine","Kansas City","Las Vegas","Los Angeles","Mexico","Mexico City","Miami","Minneapolis","Montreal","NA (state tbc)","NA/Latam/EU","Nashville","New York","New York City","North America","North America (Central)","North America (West Coast)","North America, EMEA","NYC","San Diego","San Francisco","San Jose","Sao Paulo","São Paulo","Seattle","South America, Mexico","Tampa","Texas","Toronto","United States","US","US (West Coast)","USA","Vancouver","Washington","Washington DC","Washington, DC","West USA"];
+  apac.forEach(c => { if (c) regionsDB[c.toLowerCase()] = 'APAC'; });
+  eu.forEach(c => { if (c) regionsDB[c.toLowerCase()] = 'EU'; });
+  na.forEach(c => { if (c) regionsDB[c.toLowerCase()] = 'NA'; });
+})();
+
+function saveDatabase() {
+  try {
+    localStorage.setItem(STORE_ROLES, JSON.stringify(rolesDB));
+    localStorage.setItem(STORE_REGIONS, JSON.stringify(regionsDB));
+    toast('✓ Database saved', 'ok');
+  } catch(e) { toast('✗ Save failed: ' + e.message, 'err'); }
+}
+
+function restoreDatabase() {
+  try {
+    const r = localStorage.getItem(STORE_ROLES);
+    if (r) rolesDB = JSON.parse(r);
+    const rg = localStorage.getItem(STORE_REGIONS);
+    if (rg) regionsDB = JSON.parse(rg);
+  } catch(e) { console.warn('DB restore failed', e); }
+}
+
+// ── Role helpers ──
+function getRoleAt(person, dateStr) {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const matches = rolesDB.filter(r => {
+    if (r.person.toLowerCase() !== person.toLowerCase()) return false;
+    const from = r.from ? new Date(r.from) : new Date('2000-01-01');
+    const to   = r.to   ? new Date(r.to)   : new Date('2099-12-31');
+    return d >= from && d <= to;
+  });
+  if (!matches.length) return null;
+  // Most recent effective-from wins
+  matches.sort((a,b) => new Date(b.from||0) - new Date(a.from||0));
+  return matches[0].role;
+}
+
+// ── Region helpers ──
+function getRegion(cityStr) {
+  if (!cityStr) return null;
+  const key = cityStr.toLowerCase().trim();
+  if (regionsDB[key]) return regionsDB[key];
+  // Partial match fallback
+  for (const [k, v] of Object.entries(regionsDB)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return null;
+}
+
+// ── Render Roles Table ──
+function renderRolesTable() {
+  const tbody = document.getElementById('roles-body');
+  if (!tbody) return;
+  tbody.innerHTML = rolesDB.map(r => `<tr>
+    <td><input value="${esc(r.person)}" onchange="updateRole(${r.id},'person',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);width:100px;" /></td>
+    <td>
+      <select onchange="updateRole(${r.id},'role',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);">
+        <option value="CD" ${r.role==='CD'?'selected':''}>CD</option>
+        <option value="AM" ${r.role==='AM'?'selected':''}>AM</option>
+        <option value="TL" ${r.role==='TL'?'selected':''}>TL</option>
+        <option value="Other" ${r.role==='Other'?'selected':''}>Other</option>
+      </select>
+    </td>
+    <td><input type="date" value="${r.from||''}" onchange="updateRole(${r.id},'from',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);" /></td>
+    <td><input type="date" value="${r.to||''}" onchange="updateRole(${r.id},'to',this.value)" placeholder="ongoing" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);" /></td>
+    <td><input value="${esc(r.notes||'')}" onchange="updateRole(${r.id},'notes',this.value)" placeholder="optional note" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);width:140px;" /></td>
+    <td><button class="btn btn-sm" onclick="deleteRole(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button></td>
+  </tr>`).join('');
+}
+
+function updateRole(id, field, value) {
+  const r = rolesDB.find(r => r.id === id);
+  if (r) r[field] = value;
+}
+
+function addRoleRow() {
+  rolesDB.push({ id: dbNextId++, person: '', role: 'CD', from: new Date().toISOString().slice(0,10), to: '', notes: '' });
+  renderRolesTable();
+}
+
+function deleteRole(id) {
+  if (!confirm('Remove this role entry?')) return;
+  rolesDB = rolesDB.filter(r => r.id !== id);
+  renderRolesTable();
+}
+
+// ── Render Regions Table ──
+function renderRegionsTable() {
+  const tbody = document.getElementById('regions-body');
+  if (!tbody) return;
+  const search = (document.getElementById('region-search')?.value || '').toLowerCase();
+  const entries = Object.entries(regionsDB)
+    .filter(([k]) => !search || k.includes(search))
+    .sort((a,b) => a[0].localeCompare(b[0]));
+  tbody.innerHTML = entries.map(([city, region]) => `<tr>
+    <td style="font-family:var(--mono);font-size:11px;">${esc(city)}</td>
+    <td>
+      <select onchange="updateRegion('${esc(city)}',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.3rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);">
+        <option value="APAC" ${region==='APAC'?'selected':''}>APAC</option>
+        <option value="EU"   ${region==='EU'?'selected':''}>EU</option>
+        <option value="NA"   ${region==='NA'?'selected':''}>NA</option>
+      </select>
+    </td>
+    <td><button class="btn btn-sm" onclick="deleteRegion('${esc(city)}')" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button></td>
+  </tr>`).join('') || '<tr><td colspan="3" class="empty">No entries found.</td></tr>';
+}
+
+function updateRegion(city, region) {
+  regionsDB[city.toLowerCase()] = region;
+}
+
+function deleteRegion(city) {
+  delete regionsDB[city.toLowerCase()];
+  renderRegionsTable();
+}
+
+function addRegionRow() {
+  const city = prompt('Enter city or region name:');
+  if (!city || !city.trim()) return;
+  regionsDB[city.trim().toLowerCase()] = 'APAC';
+  renderRegionsTable();
+}
+
+// ── Lookup ──
+function doLookup() {
+  const city = document.getElementById('lookup-city').value.trim();
+  const el = document.getElementById('lookup-result');
+  if (!city) { el.textContent = ''; return; }
+  const region = getRegion(city);
+  el.innerHTML = region
+    ? `<span style="color:var(--accent)">${esc(city)}</span> → <strong>${region}</strong>`
+    : `<span style="color:var(--red)">No match found for "${esc(city)}"</span> — add it in the Regions tab`;
+}
+
+function doRoleLookup() {
+  const person = document.getElementById('lookup-person').value.trim();
+  const date = document.getElementById('lookup-date').value;
+  const el = document.getElementById('lookup-role-result');
+  if (!person) { el.textContent = ''; return; }
+  const role = getRoleAt(person, date || new Date().toISOString().slice(0,10));
+  const dateLabel = date || 'today';
+  el.innerHTML = role
+    ? `<span style="color:var(--accent)">${esc(person)}</span> was <strong>${role}</strong> on ${dateLabel}`
+    : `<span style="color:var(--red)">No role found for "${esc(person)}" on ${dateLabel}</span>`;
+}
+
+// ── DB Tab ──
+function dbTab(el, id) {
+  document.querySelectorAll('#db-tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['roles','regions','lookup'].forEach(t => {
+    document.getElementById('db-' + t).style.display = t === id ? '' : 'none';
+  });
+  if (id === 'roles') renderRolesTable();
+  if (id === 'regions') renderRegionsTable();
 }
 
 function esc(s) {
@@ -872,6 +1138,7 @@ function toggleTheme() {
 // Restore data on page load
 (function() {
   restoreFromStorage();
+  restoreDatabase();
   if (projects.length > 0 || scheme.length > 0) {
     updateDataStatus();
     renderAll();
