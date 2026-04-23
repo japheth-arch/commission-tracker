@@ -188,6 +188,7 @@ tr:hover td{background:var(--bg3);}
 
 /* Rules modal */
 #rules-modal.show{display:flex !important;}
+#db-modal.show{display:flex !important;}
 .rules-input-locked{pointer-events:none;opacity:.7;background:var(--bg3) !important;}
 .rules-input-editable{background:var(--bg2);border:1px solid var(--accent) !important;}
 
@@ -449,13 +450,43 @@ tr:hover td{background:var(--bg3);}
     </div>
 
     <!-- DATABASE -->
-    <div id="page-database" class="page">
-      <div class="topbar">
-        <div><div class="page-title">Database</div><div class="page-sub">roles, regions & lookup — editable, date-aware</div></div>
-        <div style="display:flex;gap:.5rem;">
-          <button class="btn btn-accent btn-sm" onclick="saveDatabase()">Save all changes</button>
+    <!-- DATABASE WARNING MODAL -->
+    <div id="db-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r2);padding:2rem;max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.5);">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,179,71,.15);border:1px solid rgba(255,179,71,.3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">⚠️</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Edit database?</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">This affects roles, rates, and all commission calculations</div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:1.25rem;">Changes to roles, commission scheme rates, or regions will affect how commissions are calculated across <strong>all projects</strong>. Make sure you intend to update the database before proceeding.</p>
+        <div style="background:var(--bg3);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:1.25rem;font-family:var(--mono);font-size:11px;color:var(--text3);">
+          Type <span style="color:var(--amber);font-weight:600;">CONFIRM</span> below to unlock editing
+        </div>
+        <input id="db-modal-input" placeholder="Type CONFIRM here..." oninput="checkDbModalConfirm()" style="width:100%;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.6rem .875rem;font-size:13px;color:var(--text);font-family:var(--mono);margin-bottom:1rem;" />
+        <div style="display:flex;gap:.625rem;justify-content:flex-end;">
+          <button class="btn" onclick="closeDbModal()">Cancel</button>
+          <button class="btn" id="db-modal-proceed-btn" onclick="unlockDatabase()" disabled style="opacity:.4;cursor:not-allowed;color:var(--amber);border-color:rgba(255,179,71,.3);">Unlock editing</button>
         </div>
       </div>
+    </div>
+
+    <div id="page-database" class="page">
+      <div class="topbar">
+        <div><div class="page-title">Database</div><div class="page-sub" id="db-status-sub">view only — click Edit to make changes</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <div id="db-lock-badge" style="font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:.4rem;">🔒 Locked</div>
+          <button id="db-edit-btn" class="btn btn-sm" onclick="openDbModal()">Edit database</button>
+          <button id="db-save-btn" class="btn btn-sm btn-accent" onclick="saveDatabaseAndLock()" style="display:none;">Save changes</button>
+          <button id="db-cancel-btn" class="btn btn-sm" onclick="cancelDbEdit()" style="display:none;">Cancel</button>
+        </div>
+      </div>
+      <div id="db-edit-banner" style="display:none;background:rgba(255,179,71,.08);border-bottom:1px solid rgba(255,179,71,.15);padding:.75rem 2rem;font-size:12px;color:var(--amber);">
+        ✏️ Editing mode active — all fields are now editable. Click <strong>Save changes</strong> when done, or <strong>Cancel</strong> to discard.
+      </div>
+      <!-- Locked overlay -->
+      <div id="db-locked-overlay" style="position:fixed;inset:0;top:57px;z-index:5;cursor:not-allowed;"></div>
       <div class="content">
         <div class="tabs" id="db-tabs">
           <div class="tab active" onclick="dbTab(this,'roles')">Roles</div>
@@ -468,7 +499,7 @@ tr:hover td{background:var(--bg3);}
         <div id="db-roles">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
             <p style="font-size:12px;color:var(--text3);">Each person can have multiple role entries with different applicable dates. The role active on a project's Date Closed is used for commission calculations.</p>
-            <button class="btn btn-sm" onclick="addRoleRow()">+ Add entry</button>
+            <button id="roles-add-btn" class="btn btn-sm" onclick="addRoleRow()" style="display:none;">+ Add entry</button>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <div class="table-wrap">
@@ -486,7 +517,7 @@ tr:hover td{background:var(--bg3);}
             <p style="font-size:12px;color:var(--text3);">Commission rates per person by Receiver, Source, and Management combination. Rates change over time via Applicable Date (the date the scheme ends). Used for auto-calculating commissions in the People tab.</p>
             <div style="display:flex;gap:.5rem;">
               <input id="scheme-search" placeholder="Search receiver or source..." oninput="renderSchemeTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);" />
-              <button class="btn btn-sm" onclick="addSchemeRow()">+ Add row</button>
+              <button id="scheme-add-btn" class="btn btn-sm" onclick="addSchemeRow()" style="display:none;">+ Add row</button>
             </div>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
@@ -515,7 +546,7 @@ tr:hover td{background:var(--bg3);}
             <p style="font-size:12px;color:var(--text3);">Map city/region values to APAC, EU, or NA. Used for full commission threshold checks.</p>
             <div style="display:flex;gap:.5rem;">
               <input id="region-search" placeholder="Search city..." oninput="renderRegionsTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);" />
-              <button class="btn btn-sm" onclick="addRegionRow()">+ Add entry</button>
+              <button id="regions-add-btn" class="btn btn-sm" onclick="addRegionRow()" style="display:none;">+ Add entry</button>
             </div>
           </div>
           <div class="card" style="padding:0;overflow:hidden;">
@@ -968,7 +999,7 @@ function nav(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.textContent.trim().toLowerCase().replace(/\s+/g,'') === id.toLowerCase().replace(/\s+/g,'')) n.classList.add('active');
   });
-  if (id === 'database') renderRolesTable();
+  if (id === 'database') { lockDatabase(); renderRolesTable(); }
   if (id === 'rules') { renderRulesPage(); lockRules(); }
   if (id === 'people') renderPeoplePage();
 }
@@ -1076,20 +1107,23 @@ function getRegion(cityStr) {
 function renderRolesTable() {
   const tbody = document.getElementById('roles-body');
   if (!tbody) return;
+  const ro = dbLocked ? 'readonly' : '';
+  const dis = dbLocked ? 'disabled' : '';
+  const inpStyle = `background:var(--bg3);border:1px solid var(--line${dbLocked?'':'2'});border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);opacity:${dbLocked?.7:1};`;
   tbody.innerHTML = rolesDB.map(r => `<tr>
-    <td><input value="${esc(r.person)}" onchange="updateRole(${r.id},'person',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);width:100px;" /></td>
+    <td><input value="${esc(r.person)}" ${ro} onchange="updateRole(${r.id},'person',this.value)" style="${inpStyle}width:100px;" /></td>
     <td>
-      <select onchange="updateRole(${r.id},'role',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);">
+      <select ${dis} onchange="updateRole(${r.id},'role',this.value)" style="${inpStyle}">
         <option value="CD" ${r.role==='CD'?'selected':''}>CD</option>
         <option value="AM" ${r.role==='AM'?'selected':''}>AM</option>
         <option value="TL" ${r.role==='TL'?'selected':''}>TL</option>
         <option value="Other" ${r.role==='Other'?'selected':''}>Other</option>
       </select>
     </td>
-    <td><input type="date" value="${r.from||''}" onchange="updateRole(${r.id},'from',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);" /></td>
-    <td><input type="date" value="${r.to||''}" onchange="updateRole(${r.id},'to',this.value)" placeholder="ongoing" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);" /></td>
-    <td><input value="${esc(r.notes||'')}" onchange="updateRole(${r.id},'notes',this.value)" placeholder="optional note" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.35rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);width:140px;" /></td>
-    <td><button class="btn btn-sm" onclick="deleteRole(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button></td>
+    <td><input type="date" value="${r.from||''}" ${ro} onchange="updateRole(${r.id},'from',this.value)" style="${inpStyle}" /></td>
+    <td><input type="date" value="${r.to||''}" ${ro} onchange="updateRole(${r.id},'to',this.value)" placeholder="ongoing" style="${inpStyle}" /></td>
+    <td><input value="${esc(r.notes||'')}" ${ro} onchange="updateRole(${r.id},'notes',this.value)" placeholder="optional note" style="${inpStyle}width:140px;" /></td>
+    <td>${dbLocked?'':'<button class="btn btn-sm" onclick="deleteRole('+r.id+')" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button>'}</td>
   </tr>`).join('');
 }
 
@@ -1117,16 +1151,17 @@ function renderRegionsTable() {
   const entries = Object.entries(regionsDB)
     .filter(([k]) => !search || k.includes(search))
     .sort((a,b) => a[0].localeCompare(b[0]));
+  const regDis = dbLocked ? 'disabled' : '';
   tbody.innerHTML = entries.map(([city, region]) => `<tr>
-    <td style="font-family:var(--mono);font-size:11px;">${esc(city)}</td>
+    <td style="font-family:var(--mono);font-size:11px;opacity:${dbLocked?.7:1}">${esc(city)}</td>
     <td>
-      <select onchange="updateRegion('${esc(city)}',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.3rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);">
+      <select ${regDis} onchange="updateRegion('${esc(city)}',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.3rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);opacity:${dbLocked?.7:1}">
         <option value="APAC" ${region==='APAC'?'selected':''}>APAC</option>
         <option value="EU"   ${region==='EU'?'selected':''}>EU</option>
         <option value="NA"   ${region==='NA'?'selected':''}>NA</option>
       </select>
     </td>
-    <td><button class="btn btn-sm" onclick="deleteRegion('${esc(city)}')" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button></td>
+    <td>${dbLocked?'':'<button class="btn btn-sm" onclick="deleteRegion(''+esc(city)+'')" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button>'}</td>
   </tr>`).join('') || '<tr><td colspan="3" class="empty">No entries found.</td></tr>';
 }
 
@@ -1571,15 +1606,8 @@ function renderPeoplePage() {
   const statusFilter = document.getElementById('people-status-filter')?.value || '';
 
   // Build pill list
-  // DB people first, then unique Source/Management names from projects
-  const dbPeople = new Set(rolesDB.map(r => r.person).filter(p => p && p.trim()));
-  const srcMgmt = new Set();
-  projects.forEach(p => {
-    if (p['Source'] && p['Source'].trim()) srcMgmt.add(p['Source'].trim());
-    if (p['Management'] && p['Management'].trim()) srcMgmt.add(p['Management'].trim());
-  });
-  // Merge: DB people always included, plus anyone appearing as Source/Management
-  const merged = [...new Set([...dbPeople, ...srcMgmt])].filter(p => p).sort();
+  // Only people listed in Database -> Roles
+  const merged = [...new Set(rolesDB.map(r => r.person).filter(p => p && p.trim()))].sort();
 
   const pillsEl = document.getElementById('people-pills');
   if (pillsEl) {
@@ -1736,20 +1764,24 @@ function renderSchemeTable() {
     r.source.toLowerCase().includes(search) ||
     r.management.toLowerCase().includes(search)
   );
+  const sRo = dbLocked ? 'readonly' : '';
+  const sDis = dbLocked ? 'disabled' : '';
+  const sOp = dbLocked ? '.7' : '1';
+  const sStyle = `background:var(--bg3);border:1px solid var(--line${dbLocked?'':'2'});border-radius:var(--r);padding:3px 7px;font-size:12px;color:var(--text);opacity:${sOp};`;
   const inp = (val, field, id) =>
-    `<input value="${esc(String(val??''))}" onchange="updateSchemeRow(${id},'${field}',this.value)"
-      style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:3px 7px;font-size:12px;color:var(--text);font-family:var(--sans);width:100%;" />`;
+    `<input value="${esc(String(val??''))}" ${sRo} onchange="updateSchemeRow(${id},'${field}',this.value)"
+      style="${sStyle}font-family:var(--sans);width:100%;" />`;
   tbody.innerHTML = rows.length ? rows.map(r => `<tr>
     <td>${inp(r.receiver,'receiver',r.id)}</td>
     <td>${inp(r.source,'source',r.id)}</td>
-    <td><input type="number" value="${r.sourceRate}" step="0.01" min="0" max="100" onchange="updateSchemeRow(${r.id},'sourceRate',parseFloat(this.value)||0)"
-      style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:3px 7px;font-size:12px;color:var(--text);font-family:var(--mono);width:70px;" /></td>
+    <td><input type="number" value="${r.sourceRate}" step="0.01" min="0" max="100" ${sRo} onchange="updateSchemeRow(${r.id},'sourceRate',parseFloat(this.value)||0)"
+      style="${sStyle}font-family:var(--mono);width:70px;" /></td>
     <td>${inp(r.management,'management',r.id)}</td>
-    <td><input type="number" value="${r.managementRate}" step="0.01" min="0" max="100" onchange="updateSchemeRow(${r.id},'managementRate',parseFloat(this.value)||0)"
-      style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:3px 7px;font-size:12px;color:var(--text);font-family:var(--mono);width:70px;" /></td>
-    <td><input type="date" value="${r.applicableDate||''}" onchange="updateSchemeRow(${r.id},'applicableDate',this.value)"
-      style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:3px 7px;font-size:12px;color:var(--text);font-family:var(--sans);" /></td>
-    <td><button class="btn btn-sm" onclick="deleteSchemeRow(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button></td>
+    <td><input type="number" value="${r.managementRate}" step="0.01" min="0" max="100" ${sRo} onchange="updateSchemeRow(${r.id},'managementRate',parseFloat(this.value)||0)"
+      style="${sStyle}font-family:var(--mono);width:70px;" /></td>
+    <td><input type="date" value="${r.applicableDate||''}" ${sRo} onchange="updateSchemeRow(${r.id},'applicableDate',this.value)"
+      style="${sStyle}font-family:var(--sans);" /></td>
+    <td>${dbLocked?'':'<button class="btn btn-sm" onclick="deleteSchemeRow('+r.id+')" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button>'}</td>
   </tr>`).join('') : '<tr><td colspan="7" class="empty">No rows match.</td></tr>';
 }
 
@@ -1768,6 +1800,67 @@ function deleteSchemeRow(id) {
   schemeDB = schemeDB.filter(r => r.id !== id);
   buildSchemeFromDB();
   renderSchemeTable();
+}
+
+
+// ── Database Lock ──
+let dbLocked = true;
+
+function openDbModal() {
+  document.getElementById('db-modal-input').value = '';
+  const btn = document.getElementById('db-modal-proceed-btn');
+  btn.disabled = true; btn.style.opacity = '.4'; btn.style.cursor = 'not-allowed';
+  document.getElementById('db-modal').classList.add('show');
+  setTimeout(() => document.getElementById('db-modal-input').focus(), 100);
+}
+function closeDbModal() {
+  document.getElementById('db-modal').classList.remove('show');
+}
+function checkDbModalConfirm() {
+  const ok = document.getElementById('db-modal-input').value.trim() === 'CONFIRM';
+  const btn = document.getElementById('db-modal-proceed-btn');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.4';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+function unlockDatabase() {
+  closeDbModal();
+  dbLocked = false;
+  document.getElementById('db-locked-overlay').style.display = 'none';
+  document.getElementById('db-lock-badge').innerHTML = '✏️ <span style="color:var(--amber)">Editing unlocked</span>';
+  document.getElementById('db-edit-btn').style.display = 'none';
+  document.getElementById('db-save-btn').style.display = '';
+  document.getElementById('db-cancel-btn').style.display = '';
+  document.getElementById('db-edit-banner').style.display = '';
+  document.getElementById('db-status-sub').textContent = 'editing mode — all fields are now editable';
+  // Show add buttons
+  ['roles-add-btn','scheme-add-btn','regions-add-btn'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
+  // Re-render current tab so inputs become active
+  const activeTab = document.querySelector('#db-tabs .tab.active');
+  if (activeTab) activeTab.click();
+}
+function lockDatabase() {
+  dbLocked = true;
+  document.getElementById('db-locked-overlay').style.display = '';
+  document.getElementById('db-lock-badge').innerHTML = '🔒 Locked';
+  document.getElementById('db-edit-btn').style.display = '';
+  document.getElementById('db-save-btn').style.display = 'none';
+  document.getElementById('db-cancel-btn').style.display = 'none';
+  document.getElementById('db-edit-banner').style.display = 'none';
+  document.getElementById('db-status-sub').textContent = 'view only — click Edit to make changes';
+  // Hide add buttons
+  ['roles-add-btn','scheme-add-btn','regions-add-btn'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+}
+function saveDatabaseAndLock() {
+  saveDatabase();
+  lockDatabase();
+}
+function cancelDbEdit() {
+  restoreDatabase();
+  lockDatabase();
+  const activeTab = document.querySelector('#db-tabs .tab.active');
+  if (activeTab) activeTab.click();
+  toast('Changes discarded', 'ok');
 }
 
 function esc(s) {
