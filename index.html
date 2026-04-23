@@ -320,9 +320,9 @@ tr:hover td{background:var(--bg3);}
           </div>
         </div>
         <div class="card" style="margin-top:1.25rem;">
-          <div class="card-header"><span class="card-title">Data status</span></div>
+          <div class="card-header" style="justify-content:space-between;"><span class="card-title">Data status</span><button class="btn btn-sm" onclick="clearAllData()" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Clear all data</button></div>
           <div class="card-body">
-            <div id="data-status" style="font-family:var(--mono);font-size:12px;color:var(--text3);line-height:2;">No data loaded yet. Upload your CSVs above.</div>
+            <div id="data-status" style="font-family:var(--mono);font-size:12px;color:var(--text3);line-height:2;">No data loaded yet. Upload your CSVs above.<br><span style="color:var(--accent)">tip:</span> data auto-saves in your browser — persists across refreshes.</div>
           </div>
         </div>
       </div>
@@ -428,6 +428,45 @@ let projects = [];
 let scheme = [];
 let selectedPerson = null;
 
+// ── Persistence ──
+const STORE_PROJECTS = 'oc-projects-v1';
+const STORE_SCHEME   = 'oc-scheme-v1';
+
+function saveToStorage() {
+  try {
+    const rawP = projects.map(p => {
+      const copy = Object.assign({}, p);
+      copy._date = p._date ? p._date.toISOString() : null;
+      copy._dateClosed = p._dateClosed ? p._dateClosed.toISOString() : null;
+      return copy;
+    });
+    localStorage.setItem(STORE_PROJECTS, JSON.stringify(rawP));
+    const rawS = scheme.map(s => Object.assign({}, s, { applicableDate: s.applicableDate ? s.applicableDate.toISOString() : null }));
+    localStorage.setItem(STORE_SCHEME, JSON.stringify(rawS));
+  } catch(e) { console.warn('Storage save failed:', e); }
+}
+
+function restoreFromStorage() {
+  try {
+    const rawP = localStorage.getItem(STORE_PROJECTS);
+    if (rawP) {
+      projects = JSON.parse(rawP).map(p => {
+        p._date = p._date ? new Date(p._date) : null;
+        p._dateClosed = p._dateClosed ? new Date(p._dateClosed) : null;
+        if (!p._personComms) p._personComms = {};
+        return p;
+      });
+    }
+    const rawS = localStorage.getItem(STORE_SCHEME);
+    if (rawS) {
+      scheme = JSON.parse(rawS).map(s => {
+        s.applicableDate = s.applicableDate ? new Date(s.applicableDate) : null;
+        return s;
+      });
+    }
+  } catch(e) { console.warn('Storage restore failed:', e); }
+}
+
 const PEOPLE_COLS = ['Flandra','Ciara','Neil','Sab','Benz','Frances','Jessi','Roman','Marcella','Andrea','Diedona','Medina','Bleron','Jovana','Christina','Yna','Otero','Ines','Gentrit','GioT','Karen','Andrrim','Yoko','Pom','Austen','Camille(S)','Camille(M)','Camille','Flavia','Gillian','Kari','Mara','Petra(S)','Petra(M)','Petra','Sam','Jamie','Madanjit'];
 
 // ── CSV Parser ──
@@ -496,9 +535,10 @@ function processCSV(text, type, name) {
   try {
     if (type === 'projects') loadProjects(text, name);
     else loadScheme(text, name);
+    saveToStorage();
     updateDataStatus();
     renderAll();
-    toast(`✓ ${name} loaded`, 'ok');
+    toast(`✓ ${name} loaded — data saved`, 'ok');
   } catch(err) {
     toast(`✗ Error: ${err.message}`, 'err');
   }
@@ -813,6 +853,32 @@ function toggleTheme() {
     document.getElementById('theme-label').textContent = 'Dark mode';
   }
 })();
+
+// Restore data on page load
+(function() {
+  restoreFromStorage();
+  if (projects.length > 0 || scheme.length > 0) {
+    updateDataStatus();
+    renderAll();
+    if (projects.length > 0) document.getElementById('upload-ok-projects').textContent = `✓ ${projects.length} projects restored from saved data`;
+    if (scheme.length > 0) document.getElementById('upload-ok-scheme').textContent = `✓ ${scheme.length} scheme rows restored from saved data`;
+    toast(`✓ Restored ${projects.length} projects from saved data`, 'ok');
+  }
+})();
+
+function clearAllData() {
+  if (!confirm('Clear all saved data? This cannot be undone.')) return;
+  localStorage.removeItem(STORE_PROJECTS);
+  localStorage.removeItem(STORE_SCHEME);
+  projects = [];
+  scheme = [];
+  selectedPerson = null;
+  document.getElementById('upload-ok-projects').textContent = '';
+  document.getElementById('upload-ok-scheme').textContent = '';
+  updateDataStatus();
+  renderAll();
+  toast('All data cleared', 'ok');
+}
 </script>
 </body>
 </html>
