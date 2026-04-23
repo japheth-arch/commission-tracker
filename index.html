@@ -27,6 +27,22 @@
   --r: 6px;
   --r2: 10px;
 }
+body.light {
+  --bg: #f5f4f0;
+  --bg2: #ffffff;
+  --bg3: #eceae4;
+  --bg4: #e2e0da;
+  --line: rgba(0,0,0,0.08);
+  --line2: rgba(0,0,0,0.14);
+  --text: #1a1a18;
+  --text2: #5a5855;
+  --text3: #9a9890;
+  --accent: #5a8f00;
+  --accent2: #4a7800;
+  --red: #c0392b;
+  --amber: #c07000;
+  --blue: #1a6fc4;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;}
 ::selection{background:var(--accent);color:#0f0f0e;}
@@ -165,6 +181,11 @@ tr:hover td{background:var(--bg3);}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px;}
+
+/* Theme toggle */
+.theme-toggle{width:100%;display:flex;align-items:center;gap:8px;padding:.6rem .875rem;border-radius:var(--r2);border:1px solid var(--line2);background:var(--bg3);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--sans);transition:all .2s;}
+.theme-toggle:hover{border-color:var(--accent);color:var(--text);background:var(--bg4);}
+
 </style>
 </head>
 <body>
@@ -183,6 +204,12 @@ tr:hover td{background:var(--bg3);}
     <div class="nav-item" onclick="nav('upload')"><span class="nav-dot"></span>Upload CSVs</div>
     <span class="nav-section">Config</span>
     <div class="nav-item" onclick="nav('rules')"><span class="nav-dot"></span>Commission Rules</div>
+    <div style="margin-top:auto;padding:1.25rem;">
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
+        <span id="theme-icon">☀️</span>
+        <span id="theme-label">Light mode</span>
+      </button>
+    </div>
   </aside>
 
   <div class="main">
@@ -770,6 +797,22 @@ function toast(msg, type = 'ok') {
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-icon').textContent = isLight ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = isLight ? 'Dark mode' : 'Light mode';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// Restore saved theme on load
+(function() {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('theme-icon').textContent = '🌙';
+    document.getElementById('theme-label').textContent = 'Dark mode';
+  }
+})();
 </script>
 </body>
 </html>
