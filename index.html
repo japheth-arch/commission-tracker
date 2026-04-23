@@ -1152,7 +1152,11 @@ function renderRegionsTable() {
     .filter(([k]) => !search || k.includes(search))
     .sort((a,b) => a[0].localeCompare(b[0]));
   const regDis = dbLocked ? 'disabled' : '';
-  tbody.innerHTML = entries.map(([city, region]) => `<tr>
+  const deleteBtn = dbLocked ? '' : '<button class="btn btn-sm" onclick="deleteRegion(this.dataset.city)" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button>';
+  tbody.innerHTML = entries.map(([city, region]) => {
+    const safecity = esc(city);
+    const btn = dbLocked ? '' : `<button class="btn btn-sm" data-city="${safecity}" onclick="deleteRegion(this.dataset.city)" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button>`;
+    return `<tr>
     <td style="font-family:var(--mono);font-size:11px;opacity:${dbLocked?.7:1}">${esc(city)}</td>
     <td>
       <select ${regDis} onchange="updateRegion('${esc(city)}',this.value)" style="background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);padding:.3rem .6rem;font-size:12px;color:var(--text);font-family:var(--sans);opacity:${dbLocked?.7:1}">
@@ -1161,8 +1165,9 @@ function renderRegionsTable() {
         <option value="NA"   ${region==='NA'?'selected':''}>NA</option>
       </select>
     </td>
-    <td>${dbLocked?'':'<button class="btn btn-sm" onclick="deleteRegion(''+esc(city)+'')" style="color:var(--red);border-color:rgba(255,107,107,0.3);">Remove</button>'}</td>
-  </tr>`).join('') || '<tr><td colspan="3" class="empty">No entries found.</td></tr>';
+    <td>${btn}</td>
+  </tr>`;
+  }).join('') || '<tr><td colspan="3" class="empty">No entries found.</td></tr>';
 }
 
 function updateRegion(city, region) {
@@ -1170,7 +1175,9 @@ function updateRegion(city, region) {
 }
 
 function deleteRegion(city) {
-  delete regionsDB[city.toLowerCase()];
+  // city may be HTML-escaped from data attribute, decode it
+  const decoded = city.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+  delete regionsDB[decoded.toLowerCase()];
   renderRegionsTable();
 }
 
