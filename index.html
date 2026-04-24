@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Commission Tracker</title>
+<title>Ortus Club — Payroll & Commission Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -74,6 +74,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .metric-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem;}
 .metric-value{font-size:26px;font-weight:600;font-family:var(--mono);color:var(--text);}
 .metric-value.green{color:var(--accent);}
+.metric-value.amber{color:var(--amber);}
+.metric-value.red{color:var(--red);}
 .metric-sub{font-size:11px;color:var(--text3);margin-top:.25rem;}
 
 /* Cards */
@@ -208,6 +210,11 @@ tr:hover td{background:var(--bg3);}
     <span class="nav-section">Data</span>
     <div class="nav-item" onclick="nav('projects')"><span class="nav-dot"></span>Projects</div>
     <div class="nav-item" onclick="nav('upload')"><span class="nav-dot"></span>Upload CSVs</div>
+    <span class="nav-section">Payroll</span>
+    <div class="nav-item" onclick="nav('payroll')"><span class="nav-dot"></span>Payroll</div>
+    <div class="nav-item" onclick="nav('employees')"><span class="nav-dot"></span>Employees</div>
+    <div class="nav-item" onclick="nav('reimbursements')"><span class="nav-dot"></span>Reimbursements</div>
+    <div class="nav-item" onclick="nav('bonuses')"><span class="nav-dot"></span>Bonus Sheet</div>
     <span class="nav-section">Config</span>
     <div class="nav-item" onclick="nav('database')"><span class="nav-dot"></span>Database</div>
     <div class="nav-item" onclick="nav('rules')"><span class="nav-dot"></span>Commission Rules</div>
@@ -305,7 +312,191 @@ tr:hover td{background:var(--bg3);}
       </div>
     </div>
 
-    <!-- WARNING MODAL -->
+    <!-- PAYROLL PAGE -->
+    <div id="page-payroll" class="page">
+      <div class="topbar">
+        <div><div class="page-title">Payroll</div><div class="page-sub">salary & commission payout records</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <input id="payroll-search" placeholder="Search name or deal tag..." oninput="renderPayrollTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);min-width:200px;"/>
+          <select id="payroll-year-filter" onchange="renderPayrollTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All years</option>
+          </select>
+          <select id="payroll-currency-filter" onchange="renderPayrollTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All currencies</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="SGD">SGD</option>
+            <option value="PHP">PHP</option>
+          </select>
+          <button class="btn btn-sm btn-accent" onclick="addPayrollRow()">+ Add Row</button>
+        </div>
+      </div>
+      <div class="content">
+        <!-- Summary metrics -->
+        <div id="payroll-metrics" class="metrics" style="margin-bottom:1.5rem;"></div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Period Start</th>
+                  <th>Period End</th>
+                  <th>Currency</th>
+                  <th>Base Rate</th>
+                  <th>Adjustments</th>
+                  <th>Deductions</th>
+                  <th>Reimbursements</th>
+                  <th>Salary</th>
+                  <th>Sales Comm (USD)</th>
+                  <th>Sales Comm (LC)</th>
+                  <th>Deal Tags</th>
+                  <th>Total</th>
+                  <th>Date Paid</th>
+                  <th>Notes</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="payroll-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:1rem;font-size:11px;color:var(--text3);font-family:var(--mono);" id="payroll-count"></div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES PAGE -->
+    <div id="page-employees" class="page">
+      <div class="topbar">
+        <div><div class="page-title">Employees</div><div class="page-sub">salary rates & employment records</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <input id="emp-search" placeholder="Search name or email..." oninput="renderEmployeesTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);min-width:200px;"/>
+          <select id="emp-currency-filter" onchange="renderEmployeesTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All currencies</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="SGD">SGD</option>
+            <option value="PHP">PHP</option>
+          </select>
+          <button class="btn btn-sm btn-accent" onclick="addEmployeeRow()">+ Add Employee</button>
+        </div>
+      </div>
+      <div class="content">
+        <div id="emp-metrics" class="metrics" style="margin-bottom:1.5rem;"></div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Monthly Rate</th>
+                  <th>Currency</th>
+                  <th>Start Date</th>
+                  <th>Notes</th>
+                  <th>Monthly (USD est.)</th>
+                  <th>Annual (USD est.)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="emp-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;font-size:11px;color:var(--text3);font-family:var(--mono);" id="emp-count"></div>
+      </div>
+    </div>
+
+    <!-- REIMBURSEMENTS PAGE -->
+    <div id="page-reimbursements" class="page">
+      <div class="topbar">
+        <div><div class="page-title">Reimbursements</div><div class="page-sub">expense records & receipts</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <input id="reimb-search" placeholder="Search description or email..." oninput="renderReimbTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);min-width:200px;"/>
+          <select id="reimb-category-filter" onchange="renderReimbTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All categories</option>
+          </select>
+          <select id="reimb-paid-filter" onchange="renderReimbTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All statuses</option>
+            <option value="Y">Paid</option>
+            <option value="N">Unpaid</option>
+          </select>
+          <button class="btn btn-sm btn-accent" onclick="addReimbRow()">+ Add Entry</button>
+        </div>
+      </div>
+      <div class="content">
+        <div id="reimb-metrics" class="metrics" style="margin-bottom:1.5rem;"></div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Email</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Purchase Date</th>
+                  <th>Amount</th>
+                  <th>Currency</th>
+                  <th>Project Code</th>
+                  <th>Total (USD)</th>
+                  <th>Paid?</th>
+                  <th>Receipt</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="reimb-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;font-size:11px;color:var(--text3);font-family:var(--mono);" id="reimb-count"></div>
+      </div>
+    </div>
+
+    <!-- BONUSES PAGE -->
+    <div id="page-bonuses" class="page">
+      <div class="topbar">
+        <div><div class="page-title">Bonus Sheet</div><div class="page-sub">milestone, commission & bonus payouts</div></div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <input id="bonus-search" placeholder="Search name or description..." oninput="renderBonusTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--sans);min-width:200px;"/>
+          <select id="bonus-category-filter" onchange="renderBonusTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All categories</option>
+          </select>
+          <select id="bonus-currency-filter" onchange="renderBonusTable()" style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);padding:.4rem .75rem;font-size:12px;color:var(--text);font-family:var(--mono);">
+            <option value="">All currencies</option>
+            <option value="PHP">PHP</option>
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+          </select>
+          <button class="btn btn-sm btn-accent" onclick="addBonusRow()">+ Add Bonus</button>
+        </div>
+      </div>
+      <div class="content">
+        <div id="bonus-metrics" class="metrics" style="margin-bottom:1.5rem;"></div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payout Date</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Designation</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Currency</th>
+                  <th>Approx (USD)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="bonus-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;font-size:11px;color:var(--text3);font-family:var(--mono);" id="bonus-count"></div>
+      </div>
+    </div>
     <div id="rules-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
       <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r2);padding:2rem;max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.5);">
         <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
@@ -878,6 +1069,379 @@ function renderAll() {
   renderProjects();
 }
 
+// ══════════════════════════════════════════════════════════════
+// PAYROLL DATA & RENDERING
+// ══════════════════════════════════════════════════════════════
+const STORE_PAYROLL    = 'oc-payroll-v1';
+const STORE_EMPLOYEES  = 'oc-employees-v1';
+const STORE_REIMB      = 'oc-reimb-v1';
+const STORE_BONUSES    = 'oc-bonuses-v1';
+
+let payrollDB = [];
+let employeesDB = [];
+let reimbDB = [];
+let bonusDB = [];
+let payrollNextId = 1, empNextId = 1, reimbNextId = 1, bonusNextId = 1;
+
+// Seed data from xlsx
+function seedPayrollData() {
+  if (payrollDB.length) return;
+  // Seeded from Payroll sheet — representative sample
+  payrollDB = [
+    {id:payrollNextId++,name:'Petra Barna',email:'petra@ortusclub.com',periodStart:'2020-08-01',periodEnd:'2020-08-31',currency:'USD',rate:3000,nightDiff:0,adjustments:0,deductions:0,reimbursements:0,salary:3000,salesCommUSD:1529.2,salesCommLC:1657.2,dealTag:'CLF_US, CLF_NARAM3, CLF_NARAM4, BVOY_EMEA, AKAM_INDO',total:4657.2,datePaid:'2021-01-26',notes:''},
+    {id:payrollNextId++,name:'Petra Barna',email:'petra@ortusclub.com',periodStart:'2020-09-01',periodEnd:'2020-09-30',currency:'USD',rate:3000,nightDiff:0,adjustments:0,deductions:0,reimbursements:313.24,salary:3313.24,salesCommUSD:6294.27,salesCommLC:6294.27,dealTag:'ORA_LND, TWAVE_UK2, TWAVE_GER2, ARYA_IN, ARYA_AU',total:9607.51,datePaid:'2021-01-26',notes:''},
+    {id:payrollNextId++,name:'Marcella Tortora',email:'marcella@ortusclub.com',periodStart:'2020-12-21',periodEnd:'2021-01-15',currency:'EUR',rate:1800,nightDiff:0,adjustments:0,deductions:0,reimbursements:0,salary:1800,salesCommUSD:0,salesCommLC:0,dealTag:'-',total:1800,datePaid:'2021-01-25',notes:''},
+    {id:payrollNextId++,name:'Neil Pickford',email:'neil@ortusclub.com',periodStart:'2024-01-01',periodEnd:'2024-01-31',currency:'USD',rate:2700,nightDiff:0,adjustments:0,deductions:0,reimbursements:0,salary:2700,salesCommUSD:0,salesCommLC:0,dealTag:'',total:2700,datePaid:'2024-02-05',notes:''},
+    {id:payrollNextId++,name:'Ciara Manalansan',email:'ciara@ortusclub.com',periodStart:'2024-01-01',periodEnd:'2024-01-31',currency:'USD',rate:2500,nightDiff:0,adjustments:0,deductions:0,reimbursements:0,salary:2500,salesCommUSD:0,salesCommLC:0,dealTag:'',total:2500,datePaid:'2024-02-05',notes:''},
+    {id:payrollNextId++,name:'Sab Manansala',email:'sab@ortusclub.com',periodStart:'2024-02-01',periodEnd:'2024-02-29',currency:'SGD',rate:5425,nightDiff:0,adjustments:0,deductions:0,reimbursements:0,salary:5425,salesCommUSD:2150,salesCommLC:2800,dealTag:'ALATN_SIN_1, FRESH_HK_II',total:8225,datePaid:'2024-03-05',notes:''},
+  ];
+}
+
+function seedEmployeesData() {
+  if (employeesDB.length) return;
+  const raw = [
+    {name:'Jessica Circi',email:'jc@ortusclub.com',rate:5632.64,currency:'EUR',startDate:'2017-10-03',notes:''},
+    {name:'Maria Yoko Ann Rodriguez Manzano',email:'yoko@ortusclub.com',rate:5425,currency:'SGD',startDate:'2018-02-26',notes:''},
+    {name:'Neil Pickford',email:'neil@ortusclub.com',rate:2700,currency:'USD',startDate:'2020-01-06',notes:''},
+    {name:'Hannah Hodkinson',email:'hannah@ortusclub.com',rate:4400,currency:'USD',startDate:'2020-03-12',notes:''},
+    {name:'Marcella Tortora',email:'marcella@ortusclub.com',rate:3300,currency:'EUR',startDate:'2020-09-28',notes:''},
+    {name:'Lorna Davidson',email:'lorna@m-club.co',rate:3500,currency:'EUR',startDate:'2021-02-22',notes:''},
+    {name:'Austen Clark',email:'austen@ortusclub.com',rate:2990,currency:'EUR',startDate:'2021-04-06',notes:''},
+    {name:'Driton Hyseni',email:'driton@ortusclub.com',rate:2520,currency:'EUR',startDate:'2021-09-27',notes:''},
+    {name:'Danielle Annah Honasan',email:'dannah@m-club.co',rate:37500,currency:'PHP',startDate:'2022-01-03',notes:''},
+    {name:'Flandra Bislimi',email:'flandra@ortusclub.com',rate:2500,currency:'EUR',startDate:'2022-01-31',notes:''},
+    {name:'Diedona Llabjani',email:'diedona@ortusclub.com',rate:1236.4,currency:'EUR',startDate:'2022-01-31',notes:''},
+    {name:'Khristian Ivan Mauricio',email:'khristian@m-club.co',rate:43500,currency:'PHP',startDate:'2022-02-07',notes:''},
+    {name:'Bardh Limani',email:'bardh@ortusclub.com',rate:1000,currency:'EUR',startDate:'2022-03-21',notes:''},
+    {name:'Andrea Paolacci',email:'andrea@ortusclub.com',rate:2800,currency:'EUR',startDate:'2022-07-04',notes:'IT16758641001'},
+    {name:'Bleron Spahiu',email:'bleron@ortusclub.com',rate:1211.76,currency:'EUR',startDate:'2022-07-18',notes:''},
+    {name:'Medina Bilalli',email:'medina@ortusclub.com',rate:1020,currency:'EUR',startDate:'2022-07-18',notes:''},
+    {name:'Ciara Manalansan',email:'ciara@ortusclub.com',rate:2500,currency:'USD',startDate:'2023-01-01',notes:''},
+    {name:'Sabrina Manansala',email:'sab@ortusclub.com',rate:5425,currency:'SGD',startDate:'2019-01-01',notes:''},
+    {name:'Benz Lacerna',email:'benz@ortusclub.com',rate:2300,currency:'USD',startDate:'2021-06-01',notes:''},
+    {name:'Frances Chua',email:'frances@ortusclub.com',rate:2000,currency:'USD',startDate:'2021-03-01',notes:''},
+    {name:'Jovana Nikolic',email:'jovana@ortusclub.com',rate:2500,currency:'EUR',startDate:'2022-03-01',notes:''},
+    {name:'Roman Finiti',email:'roman@ortusclub.com',rate:1200,currency:'EUR',startDate:'2022-06-01',notes:''},
+    {name:'Jessi Mendoza',email:'jessi@ortusclub.com',rate:1500,currency:'USD',startDate:'2022-02-01',notes:''},
+    {name:'Christina Leynes',email:'christina@ortusclub.com',rate:2200,currency:'USD',startDate:'2023-06-01',notes:''},
+  ];
+  raw.forEach(r => { r.id = empNextId++; employeesDB.push(r); });
+}
+
+function seedReimbData() {
+  if (reimbDB.length) return;
+  const raw = [
+    {email:'krysti@ortusclub.com',category:'Other',description:'Skype Credit',purchaseDate:'2021-01-11',amount:5,currency:'EUR',projectCode:'Ortus',totalUSD:5,paid:'Y',receipt:''},
+    {email:'jamie@ortusclub.com',category:'Office Entertainment',description:'Dream Cake',purchaseDate:'2021-02-03',amount:485,currency:'PHP',projectCode:'Ortus',totalUSD:485,paid:'Y',receipt:'https://drive.google.com/file/d/1x9hL9gO1cYtf489lZRCMgNqffDPxN7Fr/view'},
+    {email:'jamie@ortusclub.com',category:'Office Entertainment',description:'Red Colored Paper for CNY and Valentines',purchaseDate:'2021-02-10',amount:127,currency:'PHP',projectCode:'Ortus',totalUSD:2.09,paid:'Y',receipt:''},
+    {email:'jamie@ortusclub.com',category:'Office Entertainment',description:'CNY Oranges for CNY Office Decoration',purchaseDate:'2021-02-10',amount:245.03,currency:'PHP',projectCode:'Ortus',totalUSD:4.03,paid:'Y',receipt:''},
+    {email:'jamie@ortusclub.com',category:'IT',description:'Laptop Repair - Replacement of battery',purchaseDate:'2021-02-19',amount:4500,currency:'PHP',projectCode:'Ortus',totalUSD:74.09,paid:'Y',receipt:''},
+    {email:'petra@ortusclub.com',category:'F&B',description:"Marcella's Bday Cake",purchaseDate:'2021-02-11',amount:27.9,currency:'EUR',projectCode:'Ortus',totalUSD:33.83,paid:'Y',receipt:''},
+    {email:'jamie@ortusclub.com',category:'Other',description:'Meyenne Gift Box',purchaseDate:'2021-02-23',amount:1630,currency:'PHP',projectCode:'Ortus',totalUSD:0,paid:'Y',receipt:''},
+    {email:'jamie@ortusclub.com',category:'Office Entertainment',description:'Gift Cards for Christmas Winners',purchaseDate:'2021-03-02',amount:8500,currency:'PHP',projectCode:'Ortus',totalUSD:139.95,paid:'Y',receipt:''},
+    {email:'neil@ortusclub.com',category:'IT',description:'Ergonomic chair for home office',purchaseDate:'2022-01-15',amount:350,currency:'USD',projectCode:'Ortus',totalUSD:350,paid:'Y',receipt:''},
+    {email:'marcella@ortusclub.com',category:'Travel',description:'Flight to London for Masterclass',purchaseDate:'2023-10-01',amount:480,currency:'EUR',projectCode:'DATA_LDN_IV',totalUSD:520,paid:'Y',receipt:''},
+  ];
+  raw.forEach(r => { r.id = reimbNextId++; r.timestamp = r.purchaseDate; reimbDB.push(r); });
+}
+
+function seedBonusData() {
+  if (bonusDB.length) return;
+  const raw = [
+    {email:'benedict@ortusclub.com',category:'EX Milestone Expenditures',payoutDate:'2023-01-25',name:'James Benedict Armiro',designation:'Finance Coordinator',description:'1st Year Anniversary',amount:10000,currency:'PHP'},
+    {email:'rodolph@ortusclub.com',category:'EX Milestone Expenditures',payoutDate:'2023-01-25',name:'Rodolph Joseph Cannu',designation:'Research Coordinator',description:'1st Year Anniversary',amount:10000,currency:'PHP'},
+    {email:'anya@ortusclub.com',category:'EX Milestone Expenditures',payoutDate:'2023-01-25',name:'Anyana Mari Africa',designation:'Head of OA',description:'2nd Year Anniversary',amount:5000,currency:'PHP'},
+    {email:'mickey@ortusclub.com',category:'EX Milestone Expenditures',payoutDate:'2023-01-25',name:'Miguel Babasa II',designation:'Head of IT',description:'2nd Year Anniversary',amount:5000,currency:'PHP'},
+    {email:'neil@ortusclub.com',category:'EX Milestone Expenditures',payoutDate:'2023-01-25',name:'Neil Pickford',designation:'Sales Director',description:'2nd Year Anniversary',amount:5000,currency:'PHP'},
+    {email:'medina@ortusclub.com',category:'Commissions',payoutDate:'2023-01-25',name:'Medina Bilalli',designation:'Project Coordinator',description:'GD Commissions',amount:45,currency:'EUR'},
+    {email:'bleron@ortusclub.com',category:'Commissions',payoutDate:'2023-01-25',name:'Bleron Spahiu',designation:'Project Coordinator',description:'GD Commissions',amount:45,currency:'EUR'},
+    {email:'bardh@ortusclub.com',category:'Commissions',payoutDate:'2023-01-25',name:'Bardh Limani',designation:'Project Coordinator',description:'GD Commissions',amount:165,currency:'EUR'},
+    {email:'diedona@ortusclub.com',category:'Commissions',payoutDate:'2023-01-25',name:'Diedona Llabjani',designation:'Assistant Team Lead',description:'GD Commissions',amount:950,currency:'EUR'},
+    {email:'neil@ortusclub.com',category:'Commissions',payoutDate:'2024-01-25',name:'Neil Pickford',designation:'Sales Director',description:'Q4 2023 Commission Bonus',amount:3500,currency:'USD'},
+    {email:'ciara@ortusclub.com',category:'Commissions',payoutDate:'2024-01-25',name:'Ciara Manalansan',designation:'Head of Client Relations',description:'Q4 2023 Commission Bonus',amount:2200,currency:'USD'},
+    {email:'marcella@ortusclub.com',category:'Commissions',payoutDate:'2024-01-25',name:'Marcella Tortora',designation:'Head of Client Relations',description:'Q4 2023 Commission Bonus',amount:1800,currency:'EUR'},
+    {email:'sab@ortusclub.com',category:'Commissions',payoutDate:'2024-04-25',name:'Sabrina Manansala',designation:'Client Director',description:'Q1 2024 Commission Bonus',amount:4200,currency:'USD'},
+    {email:'neil@ortusclub.com',category:'Commissions',payoutDate:'2024-04-25',name:'Neil Pickford',designation:'Sales Director',description:'Q1 2024 Commission Bonus',amount:3800,currency:'USD'},
+    {email:'andrea@ortusclub.com',category:'EX Milestone Expenditures',payoutDate:'2024-07-04',name:'Andrea Paolacci',designation:'Client Director',description:'2nd Year Anniversary',amount:180,currency:'EUR'},
+  ];
+  raw.forEach(r => { r.id = bonusNextId++; bonusDB.push(r); });
+}
+
+// Currency conversion estimates
+function toUSD(amount, currency) {
+  const rates = { USD:1, EUR:1.08, SGD:0.74, PHP:0.017, GBP:1.27 };
+  return amount * (rates[currency] || 1);
+}
+
+// ── Payroll ──
+function renderPayrollTable() {
+  const search = (document.getElementById('payroll-search')?.value||'').toLowerCase();
+  const yearF = document.getElementById('payroll-year-filter')?.value||'';
+  const currF = document.getElementById('payroll-currency-filter')?.value||'';
+
+  const filtered = payrollDB.filter(r => {
+    if (search && !r.name.toLowerCase().includes(search) && !(r.dealTag||'').toLowerCase().includes(search)) return false;
+    if (yearF && !(r.periodStart||'').startsWith(yearF)) return false;
+    if (currF && r.currency !== currF) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('payroll-body');
+  if (!tbody) return;
+
+  const totalSalary = filtered.reduce((s,r) => s + toUSD(r.salary||0, r.currency), 0);
+  const totalComm = filtered.reduce((s,r) => s + (r.salesCommUSD||0), 0);
+  const totalPayout = filtered.reduce((s,r) => s + toUSD(r.total||0, r.currency), 0);
+
+  const metricsEl = document.getElementById('payroll-metrics');
+  if (metricsEl) metricsEl.innerHTML = `
+    <div class="metric"><div class="metric-label">Records</div><div class="metric-value">${filtered.length}</div></div>
+    <div class="metric"><div class="metric-label">Total Salary (USD est.)</div><div class="metric-value green">${fmtShort(totalSalary)}</div></div>
+    <div class="metric"><div class="metric-label">Total Commissions</div><div class="metric-value green">${fmtShort(totalComm)}</div></div>
+    <div class="metric"><div class="metric-label">Total Payouts (USD est.)</div><div class="metric-value green">${fmtShort(totalPayout)}</div></div>
+  `;
+
+  const countEl = document.getElementById('payroll-count');
+  if (countEl) countEl.textContent = `Showing ${filtered.length} of ${payrollDB.length} payroll records`;
+
+  // Populate year filter
+  const years = [...new Set(payrollDB.map(r => (r.periodStart||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  const yf = document.getElementById('payroll-year-filter');
+  if (yf && yf.options.length <= 1) {
+    years.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; yf.appendChild(o); });
+  }
+
+  tbody.innerHTML = filtered.length ? filtered.map(r => `<tr>
+    <td>${esc(r.name)}</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.periodStart||'—'}</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.periodEnd||'—'}</td>
+    <td><span class="badge badge-gray">${esc(r.currency)}</span></td>
+    <td class="num">${fmt(r.rate||0)}</td>
+    <td class="num">${r.adjustments ? fmt(r.adjustments) : '—'}</td>
+    <td class="num ${(r.deductions||0)>0?'red':''}">${r.deductions ? fmt(r.deductions) : '—'}</td>
+    <td class="num ${(r.reimbursements||0)>0?'blue':''}">${r.reimbursements ? fmt(r.reimbursements) : '—'}</td>
+    <td class="num">${fmt(r.salary||0)}</td>
+    <td class="num green">${r.salesCommUSD ? fmt(r.salesCommUSD) : '—'}</td>
+    <td class="num" style="color:var(--text3);">${r.salesCommLC ? fmt(r.salesCommLC) : '—'}</td>
+    <td style="font-size:10px;font-family:var(--mono);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.dealTag||'')}">${esc((r.dealTag||'').slice(0,60)) || '—'}</td>
+    <td class="num" style="color:var(--accent);font-weight:600;">${fmt(r.total||0)}</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.datePaid||'—'}</td>
+    <td style="color:var(--text3);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.notes||'')}</td>
+    <td><button class="btn btn-sm" onclick="deletePayrollRow(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.2);">×</button></td>
+  </tr>`).join('') : '<tr><td colspan="16" class="empty">No payroll records. Add one above or import from CSV.</td></tr>';
+}
+
+function addPayrollRow() {
+  const name = prompt('Employee name:');
+  if (!name) return;
+  payrollDB.unshift({ id:payrollNextId++, name, email:'', periodStart:new Date().toISOString().slice(0,7)+'-01', periodEnd:'', currency:'USD', rate:0, nightDiff:0, adjustments:0, deductions:0, reimbursements:0, salary:0, salesCommUSD:0, salesCommLC:0, dealTag:'', total:0, datePaid:'', notes:'' });
+  savePayrollStorage();
+  renderPayrollTable();
+}
+function deletePayrollRow(id) {
+  if (!confirm('Remove this payroll record?')) return;
+  payrollDB = payrollDB.filter(r => r.id !== id);
+  savePayrollStorage();
+  renderPayrollTable();
+}
+function savePayrollStorage() {
+  try { localStorage.setItem(STORE_PAYROLL, JSON.stringify(payrollDB)); } catch(e){}
+}
+function restorePayrollStorage() {
+  try { const d = localStorage.getItem(STORE_PAYROLL); if(d) { payrollDB = JSON.parse(d); payrollNextId = Math.max(...payrollDB.map(r=>r.id), 0) + 1; } } catch(e){}
+}
+
+// ── Employees ──
+function renderEmployeesTable() {
+  const search = (document.getElementById('emp-search')?.value||'').toLowerCase();
+  const currF = document.getElementById('emp-currency-filter')?.value||'';
+  const filtered = employeesDB.filter(r => {
+    if (search && !r.name.toLowerCase().includes(search) && !(r.email||'').toLowerCase().includes(search)) return false;
+    if (currF && r.currency !== currF) return false;
+    return true;
+  });
+  const tbody = document.getElementById('emp-body');
+  if (!tbody) return;
+  const metricsEl = document.getElementById('emp-metrics');
+  const totalMonthlyUSD = filtered.reduce((s,r) => s + toUSD(r.rate||0, r.currency), 0);
+  if (metricsEl) metricsEl.innerHTML = `
+    <div class="metric"><div class="metric-label">Employees</div><div class="metric-value">${filtered.length}</div></div>
+    <div class="metric"><div class="metric-label">Monthly Payroll (USD est.)</div><div class="metric-value green">${fmtShort(totalMonthlyUSD)}</div></div>
+    <div class="metric"><div class="metric-label">Annual Payroll (USD est.)</div><div class="metric-value green">${fmtShort(totalMonthlyUSD*12)}</div></div>
+  `;
+  const countEl = document.getElementById('emp-count');
+  if (countEl) countEl.textContent = `Showing ${filtered.length} of ${employeesDB.length} employees`;
+  tbody.innerHTML = filtered.length ? filtered.map(r => {
+    const usd = toUSD(r.rate||0, r.currency);
+    return `<tr>
+      <td>${esc(r.name)}</td>
+      <td style="color:var(--text3);font-size:11px;">${esc(r.email||'')}</td>
+      <td class="num">${fmt(r.rate||0)}</td>
+      <td><span class="badge badge-gray">${esc(r.currency)}</span></td>
+      <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.startDate||'—'}</td>
+      <td style="color:var(--text3);font-size:11px;">${esc(r.notes||'')}</td>
+      <td class="num" style="color:var(--text2);">${fmt(usd)}</td>
+      <td class="num green">${fmtShort(usd*12)}</td>
+      <td><button class="btn btn-sm" onclick="deleteEmpRow(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.2);">×</button></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="9" class="empty">No employees. Add one above.</td></tr>';
+}
+
+function addEmployeeRow() {
+  const name = prompt('Employee full name:');
+  if (!name) return;
+  const email = prompt('Email:') || '';
+  const rate = parseFloat(prompt('Monthly rate:')) || 0;
+  const currency = prompt('Currency (USD/EUR/SGD/PHP):') || 'USD';
+  employeesDB.push({ id:empNextId++, name, email, rate, currency, startDate:new Date().toISOString().slice(0,10), notes:'' });
+  saveEmpStorage();
+  renderEmployeesTable();
+}
+function deleteEmpRow(id) {
+  if (!confirm('Remove this employee?')) return;
+  employeesDB = employeesDB.filter(r => r.id !== id);
+  saveEmpStorage();
+  renderEmployeesTable();
+}
+function saveEmpStorage() {
+  try { localStorage.setItem(STORE_EMPLOYEES, JSON.stringify(employeesDB)); } catch(e){}
+}
+function restoreEmpStorage() {
+  try { const d = localStorage.getItem(STORE_EMPLOYEES); if(d) { employeesDB = JSON.parse(d); empNextId = Math.max(...employeesDB.map(r=>r.id), 0) + 1; } } catch(e){}
+}
+
+// ── Reimbursements ──
+function renderReimbTable() {
+  const search = (document.getElementById('reimb-search')?.value||'').toLowerCase();
+  const catF = document.getElementById('reimb-category-filter')?.value||'';
+  const paidF = document.getElementById('reimb-paid-filter')?.value||'';
+  const filtered = reimbDB.filter(r => {
+    if (search && !(r.description||'').toLowerCase().includes(search) && !(r.email||'').toLowerCase().includes(search)) return false;
+    if (catF && r.category !== catF) return false;
+    if (paidF && r.paid !== paidF) return false;
+    return true;
+  });
+  const tbody = document.getElementById('reimb-body');
+  if (!tbody) return;
+  const totalUSD = filtered.reduce((s,r) => s + (r.totalUSD||0), 0);
+  const paid = filtered.filter(r => r.paid === 'Y').reduce((s,r) => s + (r.totalUSD||0), 0);
+  const metricsEl = document.getElementById('reimb-metrics');
+  if (metricsEl) metricsEl.innerHTML = `
+    <div class="metric"><div class="metric-label">Records</div><div class="metric-value">${filtered.length}</div></div>
+    <div class="metric"><div class="metric-label">Total (USD est.)</div><div class="metric-value green">${fmtShort(totalUSD)}</div></div>
+    <div class="metric"><div class="metric-label">Paid Out</div><div class="metric-value green">${fmtShort(paid)}</div></div>
+    <div class="metric"><div class="metric-label">Pending</div><div class="metric-value amber">${fmtShort(totalUSD - paid)}</div></div>
+  `;
+  // Populate category filter
+  const catEl = document.getElementById('reimb-category-filter');
+  if (catEl && catEl.options.length <= 1) {
+    [...new Set(reimbDB.map(r=>r.category).filter(Boolean))].sort().forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; catEl.appendChild(o); });
+  }
+  const countEl = document.getElementById('reimb-count');
+  if (countEl) countEl.textContent = `Showing ${filtered.length} of ${reimbDB.length} records`;
+  tbody.innerHTML = filtered.length ? filtered.map(r => `<tr>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.timestamp||r.purchaseDate||'—'}</td>
+    <td style="font-size:11px;">${esc(r.email||'')}</td>
+    <td><span class="badge badge-gray" style="font-size:9px;">${esc(r.category||'')}</span></td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.description||'')}</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.purchaseDate||'—'}</td>
+    <td class="num">${fmt(r.amount||0)}</td>
+    <td><span class="badge badge-gray">${esc(r.currency||'')}</span></td>
+    <td style="font-family:var(--mono);font-size:11px;">${esc(r.projectCode||'')}</td>
+    <td class="num green">${fmt(r.totalUSD||0)}</td>
+    <td>${r.paid==='Y'?'<span class="badge badge-green">Paid</span>':'<span class="badge badge-amber">Pending</span>'}</td>
+    <td>${r.receipt?`<a href="${esc(r.receipt)}" target="_blank" style="color:var(--blue);font-size:11px;">View</a>`:'—'}</td>
+    <td><button class="btn btn-sm" onclick="deleteReimbRow(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.2);">×</button></td>
+  </tr>`).join('') : '<tr><td colspan="12" class="empty">No reimbursement records. Add one above.</td></tr>';
+}
+
+function addReimbRow() {
+  const email = prompt('Employee email:') || '';
+  const description = prompt('Item description:') || '';
+  const amount = parseFloat(prompt('Amount:')) || 0;
+  const currency = prompt('Currency (USD/EUR/PHP/SGD):') || 'USD';
+  const category = prompt('Category (e.g. IT, Travel, F&B, Other):') || 'Other';
+  reimbDB.unshift({ id:reimbNextId++, timestamp:new Date().toISOString().slice(0,10), email, category, description, purchaseDate:new Date().toISOString().slice(0,10), amount, currency, projectCode:'Ortus', totalUSD:toUSD(amount,currency), paid:'N', receipt:'' });
+  saveReimbStorage();
+  renderReimbTable();
+}
+function deleteReimbRow(id) {
+  if (!confirm('Remove this reimbursement record?')) return;
+  reimbDB = reimbDB.filter(r => r.id !== id);
+  saveReimbStorage();
+  renderReimbTable();
+}
+function saveReimbStorage() {
+  try { localStorage.setItem(STORE_REIMB, JSON.stringify(reimbDB)); } catch(e){}
+}
+function restoreReimbStorage() {
+  try { const d = localStorage.getItem(STORE_REIMB); if(d) { reimbDB = JSON.parse(d); reimbNextId = Math.max(...reimbDB.map(r=>r.id), 0) + 1; } } catch(e){}
+}
+
+// ── Bonuses ──
+function renderBonusTable() {
+  const search = (document.getElementById('bonus-search')?.value||'').toLowerCase();
+  const catF = document.getElementById('bonus-category-filter')?.value||'';
+  const currF = document.getElementById('bonus-currency-filter')?.value||'';
+  const filtered = bonusDB.filter(r => {
+    if (search && !(r.name||'').toLowerCase().includes(search) && !(r.description||'').toLowerCase().includes(search)) return false;
+    if (catF && r.category !== catF) return false;
+    if (currF && r.currency !== currF) return false;
+    return true;
+  });
+  const tbody = document.getElementById('bonus-body');
+  if (!tbody) return;
+  const totalUSD = filtered.reduce((s,r) => s + toUSD(r.amount||0, r.currency), 0);
+  const metricsEl = document.getElementById('bonus-metrics');
+  if (metricsEl) metricsEl.innerHTML = `
+    <div class="metric"><div class="metric-label">Records</div><div class="metric-value">${filtered.length}</div></div>
+    <div class="metric"><div class="metric-label">Total (USD est.)</div><div class="metric-value green">${fmtShort(totalUSD)}</div></div>
+    <div class="metric"><div class="metric-label">Categories</div><div class="metric-value">${[...new Set(bonusDB.map(r=>r.category).filter(Boolean))].length}</div></div>
+  `;
+  // Populate category filter
+  const catEl = document.getElementById('bonus-category-filter');
+  if (catEl && catEl.options.length <= 1) {
+    [...new Set(bonusDB.map(r=>r.category).filter(Boolean))].sort().forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; catEl.appendChild(o); });
+  }
+  const countEl = document.getElementById('bonus-count');
+  if (countEl) countEl.textContent = `Showing ${filtered.length} of ${bonusDB.length} bonus records`;
+  tbody.innerHTML = filtered.length ? filtered.map(r => `<tr>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${r.payoutDate||'—'}</td>
+    <td>${esc(r.name||'')}</td>
+    <td style="font-size:11px;color:var(--text3);">${esc(r.email||'')}</td>
+    <td style="font-size:11px;color:var(--text3);">${esc(r.designation||'')}</td>
+    <td><span class="badge ${r.category==='Commissions'?'badge-green':'badge-amber'}" style="font-size:9px;">${esc(r.category||'')}</span></td>
+    <td>${esc(r.description||'')}</td>
+    <td class="num">${fmt(r.amount||0)}</td>
+    <td><span class="badge badge-gray">${esc(r.currency||'')}</span></td>
+    <td class="num green">${fmt(toUSD(r.amount||0, r.currency))}</td>
+    <td><button class="btn btn-sm" onclick="deleteBonusRow(${r.id})" style="color:var(--red);border-color:rgba(255,107,107,0.2);">×</button></td>
+  </tr>`).join('') : '<tr><td colspan="10" class="empty">No bonus records. Add one above.</td></tr>';
+}
+
+function addBonusRow() {
+  const name = prompt('Employee name:') || '';
+  const description = prompt('Description:') || '';
+  const amount = parseFloat(prompt('Amount:')) || 0;
+  const currency = prompt('Currency (PHP/EUR/USD):') || 'PHP';
+  const category = prompt('Category (e.g. Commissions, EX Milestone Expenditures):') || 'Other';
+  bonusDB.unshift({ id:bonusNextId++, email:'', category, payoutDate:new Date().toISOString().slice(0,10), name, designation:'', description, amount, currency });
+  saveBonusStorage();
+  renderBonusTable();
+}
+function deleteBonusRow(id) {
+  if (!confirm('Remove this bonus record?')) return;
+  bonusDB = bonusDB.filter(r => r.id !== id);
+  saveBonusStorage();
+  renderBonusTable();
+}
+function saveBonusStorage() {
+  try { localStorage.setItem(STORE_BONUSES, JSON.stringify(bonusDB)); } catch(e){}
+}
+function restoreBonusStorage() {
+  try { const d = localStorage.getItem(STORE_BONUSES); if(d) { bonusDB = JSON.parse(d); bonusNextId = Math.max(...bonusDB.map(r=>r.id), 0) + 1; } } catch(e){}
+}
+
 // ── Dashboard ──
 function renderDashboard() {
   const quarter = document.getElementById('dash-quarter')?.value || '';
@@ -1032,6 +1596,10 @@ function nav(id) {
   if (id === 'database') { lockDatabase(); renderRolesTable(); }
   if (id === 'rules') { renderRulesPage(); lockRules(); }
   if (id === 'people') renderPeoplePage();
+  if (id === 'payroll') renderPayrollTable();
+  if (id === 'employees') renderEmployeesTable();
+  if (id === 'reimbursements') renderReimbTable();
+  if (id === 'bonuses') renderBonusTable();
 }
 
 function rulesTab(el, id) {
@@ -2054,6 +2622,10 @@ function toggleTheme() {
   restoreFromStorage();
   restoreDatabase();
   restoreRulesData();
+  restorePayrollStorage(); if (!payrollDB.length) seedPayrollData();
+  restoreEmpStorage(); if (!employeesDB.length) seedEmployeesData();
+  restoreReimbStorage(); if (!reimbDB.length) seedReimbData();
+  restoreBonusStorage(); if (!bonusDB.length) seedBonusData();
   if (projects.length > 0 || scheme.length > 0) {
     updateDataStatus();
     renderAll();
